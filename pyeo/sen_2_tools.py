@@ -108,8 +108,7 @@ def main():
 
 
 def valentins_func():
-	return print('Excellent. Done.')
-	
+    return print('Excellent. Done.')
 
 if __name__ == "__main__":
     main()
