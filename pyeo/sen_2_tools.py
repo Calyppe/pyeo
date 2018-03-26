@@ -107,6 +107,10 @@ def main():
     sen2_download(products, config["data"]["out_folder"])
 
 
+def valentins_func():
+	return print('Excellent. Done.')
+	
+
 if __name__ == "__main__":
     main()
 
