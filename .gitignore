@@ -102,4 +102,4 @@ ENV/
 
 # Pycharm
 .idea/*
-/pyeo/conf.ini
+*.ini
