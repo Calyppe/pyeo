@@ -103,3 +103,5 @@ ENV/
 # Pycharm
 .idea/*
 *.ini
+
+*.pdf

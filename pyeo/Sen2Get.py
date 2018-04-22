@@ -1,5 +1,4 @@
 from sentinelsat.sentinel import SentinelAPI
-import configparser
 
 
 def sen2_download(products, conf):
