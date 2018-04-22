@@ -11,7 +11,7 @@ def mosaic(path, out_name, wildcard=None, in_format=None):
    :param out_name: Output filename as string.
    """
    if wildcard == None:
-       wildcard = '/**/GRANULE/*/*.tif'
+       wildcard = '*.tif'
    else:
        wildcard = wildcard
 
