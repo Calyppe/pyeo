@@ -33,7 +33,7 @@ def mosaic(path, out_name, wildcard=None, in_format=None):
    columns = math.ceil((max_x - min_x) / gt[1])
 
    # create output
-   if in_format == None:
+   if in_format is None:
        in_format = 'gtiff'
    else:
        in_format = in_format
@@ -60,3 +60,6 @@ def mosaic(path, out_name, wildcard=None, in_format=None):
 
    # delete object
    del in_ds, out_band, out_ds
+
+if "__name__" == "__main__":
+    # TODO: Test mosaic function with unit-testing function.
