@@ -1,4 +1,7 @@
-import gdal, ogr
+import os
+import gdal
+import math
+import glob2
 
 def mosaic(path, out_name, wildcard=None, in_format=None):
    """Creates a mosaic of multiple rasters. Input raster format is GeoTiff
@@ -10,7 +13,7 @@ def mosaic(path, out_name, wildcard=None, in_format=None):
    :param in_format: Format of input dataset. Default is GeoTiff.
    :param out_name: Output filename as string.
    """
-   if wildcard == None:
+   if wildcard is None:
        wildcard = '*.tif'
    else:
        wildcard = wildcard
@@ -60,6 +63,17 @@ def mosaic(path, out_name, wildcard=None, in_format=None):
 
    # delete object
    del in_ds, out_band, out_ds
+
+
+def get_extent(fn):
+   """Returns min_x, max_y, max_x, min_y from a raster data.
+
+   :param fn: Raster data set or path to raster input data.
+   """
+   ds = gdal.open(fn)
+   gt = ds.GetGeoTransform()
+   return (gt[0], gt[3], gt[0] + gt [1] * ds.RasterXSize,
+           gt[3] + gt[5] * ds.RasterYSize)
 
 if "__name__" == "__main__":
     # TODO: Test mosaic function with unit-testing function.
