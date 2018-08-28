@@ -978,8 +978,10 @@ def classify_image(image_path, model_path, map_out_path, prob_out_path, apply_ma
         ]
         out_view[:] = model.predict(chunk_view)
         prob_view[:, :] = model.predict_proba(chunk_view)
-    map_out_image.GetVirtualMemArray(eAccess=gdal.GF_Write)[:, :] = reshape_ml_out_to_raster(classes, image.RasterXSize, image.RasterYSize)
-    prob_out_image.GetVirtualMemArray(eAccess=gdal.GF_Write)[:, :, :] = reshape_prob_out_to_raster(probs, image.RasterXSize, image.RasterYSize)
+    map_out_image.GetVirtualMemArray(eAccess=gdal.GF_Write)[:, :] = \
+        reshape_ml_out_to_raster(classes, image.RasterXSize, image.RasterYSize)
+    prob_out_image.GetVirtualMemArray(eAccess=gdal.GF_Write)[:, :, :] = \
+        reshape_prob_out_to_raster(probs, image.RasterXSize, image.RasterYSize)
     map_out_image = None
     prob_out_image = None
     return map_out_path, prob_out_path
@@ -1044,15 +1046,13 @@ def create_model_for_region(path_to_region, model_out, scores_out, attribute="CO
         score_file.write(str(scores))
 
 
-def get_training_data(image_path, shape_path, attribute="CODE", shape_projection_id = 4326):
+def get_training_data(image_path, shape_path, attribute="CODE"):
     """Given an image and a shapefile with categories, return x and y suitable
     for feeding into random_forest.fit.
     Note: THIS WILL FAIL IF YOU HAVE ANY CLASSES NUMBERED '0'
     WRITE A TEST FOR THIS TOO; if this goes wrong, it'll go wrong quietly and in a way that'll cause the most issues
      further on down the line."""
     with TemporaryDirectory() as td:
-        shape_projection = osr.SpatialReference()
-        shape_projection.ImportFromEPSG(shape_projection_id)
         image = gdal.Open(image_path)
         image_gt = image.GetGeoTransform()
         x_res, y_res = image_gt[1], image_gt[5]
@@ -1063,7 +1063,6 @@ def get_training_data(image_path, shape_path, attribute="CODE", shape_projection
             xRes=x_res,
             yRes=y_res,
             outputType=gdal.GDT_Int16,
-            outputSRS=shape_projection
         )
         # This produces a rasterised geotiff that's right, but not perfectly aligned to pixels.
         # This can probably be fixed.
