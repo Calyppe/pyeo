@@ -4,7 +4,7 @@ To create a training set, enclose any features you want to classify with polygon
 of something like 'class_id', as an integer, and set that value to the class inside the polygon. Set the paths
 to the shapefile and raster in the associated model_creation.ini file, along with a path to where you want to
 store the completed model (as a .pkl file) and the name of the field used to identify the polygons ("class_id"
- in this example).
+in this example).
 
 *Do not make class_id = 0 in any training polygon; it will be ignored if you do*
 
@@ -28,7 +28,7 @@ import argparse
 import sklearn.ensemble as ens
 import joblib
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Produces a trained model from a raster and associated shapefile')
     parser.add_argument('--conf', dest='config_path', action='store', default=r'model_creation.ini',
