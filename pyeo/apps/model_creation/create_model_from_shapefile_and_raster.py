@@ -28,7 +28,7 @@ import argparse
 import sklearn.ensemble as ens
 import joblib
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Produces a trained model from a raster and associated shapefile')
     parser.add_argument('--conf', dest='config_path', action='store', default=r'model_creation.ini',
