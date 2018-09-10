@@ -24,6 +24,8 @@ from planet import api as planet_api
 from multiprocessing.dummy import Pool
 import json
 
+DEFAULT_MODEL = ens.ExtraTreesClassifier(bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
+                                     min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
 
 class ForestSentinelException(Exception):
     pass
@@ -124,6 +126,7 @@ def init_log(log_path):
     log.setLevel(logging.DEBUG)
     file_handler = logging.FileHandler(log_path)
     file_handler.setLevel(logging.DEBUG)
+    file_handler.formatter
     log.addHandler(file_handler)
     log.info("****PROCESSING START****")
     return log
@@ -825,7 +828,7 @@ def get_poly_size(poly):
     return out
 
 
-def create_cloud_mask(image_path, model_path, mask_out_path, model_nodata = 1):
+def create_cloud_mask_from_model(image_path, model_path, model_nodata = 1):
     log = logging.getLogger(__name__)
     log.info("Building cloud mask for {}".format(image_path))
     mask_path = get_mask_path(image_path)
@@ -1029,7 +1032,7 @@ def reshape_prob_out_to_raster(probs, width, height):
     return image_array
 
 
-def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attribute="CODE"):
+def create_trained_model(training_image_file_paths, model=DEFAULT_MODEL, cross_val_repeats = 5, attribute="CODE"):
     """Returns a trained random forest model from the training data. This
     assumes that image and model are in the same directory, with a shapefile.
     Give training_image_path a path to a list of .tif files. See spec in the R drive for data structure.
@@ -1048,8 +1051,6 @@ def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attri
         else:
             learning_data = np.append(learning_data, this_training_data, 0)
             classes = np.append(classes, this_classes)
-    model = ens.ExtraTreesClassifier(bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
-                                     min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
     model.fit(learning_data, classes)
     scores = cross_val_score(model, learning_data, classes, cv=cross_val_repeats)
     return model, scores
