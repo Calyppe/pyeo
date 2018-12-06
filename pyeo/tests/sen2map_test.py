@@ -193,16 +193,16 @@ def scale_bar_left(ax, bars=4, length=None, location=(0.1, 0.05), linewidth=3, c
     '''
 
 if not length:
-        length = (x1 - x0) / 5000  # in km
-        ndim = int(np.floor(np.log10(length)))  # number of digits in number
-        length = round(length, -ndim)  # round to 1sf
+    length = (x1 - x0) / 5000  # in km
+    ndim = int(np.floor(np.log10(length)))  # number of digits in number
+    length = round(length, -ndim)  # round to 1sf
 
-        # Returns numbers starting with the list
-        def scale_number(x):
-            if str(x)[0] in ['1', '2', '5']:
-                return int(x)
-            else:
-                return scale_number(x - 10 ** ndim)
+    # Returns numbers starting with the list
+    def scale_number(x):
+        if str(x)[0] in ['1', '2', '5']:
+            return int(x)
+        else:
+            return scale_number(x - 10 ** ndim)
 
     ndim = int(np.floor(np.log10(length)))  # number of digits in number
     if ndim > -1:
