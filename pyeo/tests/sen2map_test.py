@@ -46,16 +46,13 @@ io.use_plugin('matplotlib')
 #############################################################################
 # OPTIONS
 #############################################################################
-wd = '/scratch/clcr/shared/heiko/marque_de_com/image' # working directory on Linux HPC
-#wd = '/home/heiko/linuxpy/mexico/'  # working directory on Linux Virtual Box
-shapedir = wd # this is where the shapefile is located
-datadir = wd + 'data/'  # directory of Sentinel L1C data files in .SAFE format
-mapdir = wd + 'data/'  # directory of Sentinel L1C data files in .SAFE format
-shapefile = 'spacepark_osgb.shp' # the shapefile resides in wd
+wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on Linux HPC
+geojsondir = '/scratch/clcr/shared/heiko/marque_de_com/aois/' # this is where the  geojson file is located
+datadir = wd + 'L2A/'  # directory of Sentinel L2A data files in .SAFE format
+mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
+geojsonfile = 'marque_de_com_really_simple.geojson' # geojson file of test area
 bands = [5, 4, 3]  # band selection for RGB
-#rosepath = '/home/heiko/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on laptop
 rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
-
 
 #############################################################################
 # FUNCTION DECLARATIONS
@@ -466,105 +463,6 @@ def read_sen2_rgb(rgbfiles, enhance=True):
         ds = None
     return rgbdata
 
-
-'''
-def map_it_old(rgbdata, tifproj, mapextent, shapefile, plotfile='map.jpg',
-           plottitle='', figsizex=10, figsizey=10):
-    standard map making function that saves a jpeg file of the output
-    and visualises it on screen
-    rgbdata = numpy array of the red, green and blue channels, made by read_sen2rgb
-    tifproj = map projection of the tiff files from which the rgbdata originate
-    mapextent = extent of the map in map coordinates
-    shapefile = shapefile name to be plotted on top of the map
-    shpproj = map projection of the shapefile
-    plotfile = output filename for the map plot
-    plottitle = text to be written above the map
-    figsizex = width of the figure in inches
-    figsizey = height of the figure in inches
-    # get shapefile projection from the file
-    # get driver to read a shapefile and open it
-    driver = ogr.GetDriverByName('ESRI Shapefile')
-    dataSource = driver.Open(shapefile, 0)
-    if dataSource is None:
-        print('Could not open ' + shapefile)
-        sys.exit(1)  # exit with an error code
-    # get the layer from the shapefile
-    layer = dataSource.GetLayer()
-    # get the projection information and convert to wkt
-    projsr = layer.GetSpatialRef()
-    projwkt = projsr.ExportToWkt()
-    projosr = osr.SpatialReference()
-    projosr.ImportFromWkt(projwkt)
-    # convert wkt projection to Cartopy projection
-    projcs = projosr.GetAuthorityCode('PROJCS')
-    shapeproj = ccrs.epsg(projcs)
-
-    # make the figure and the axes
-    subplot_kw = dict(projection=tifproj)
-    fig, ax = plt.subplots(figsize=(figsizex, figsizey),
-                           subplot_kw=subplot_kw)
-
-    # set a margin around the data
-    ax.set_xmargin(0.05)
-    ax.set_ymargin(0.10)
-
-    # add a background image for rendering
-    ax.stock_img()
-
-    # show the data from the geotiff RGB image
-    img = ax.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
-                    extent=extent, origin='upper')
-
-    # read shapefile and plot it onto the tiff image map
-    shape_feature = ShapelyFeature(Reader(shapefile).geometries(),
-                                   crs=shapeproj, edgecolor='yellow',
-                                   facecolor='none')
-    ax.add_feature(shape_feature)
-
-    # add a title
-    plt.title(plottitle)
-
-    # set map extent
-    ax.set_extent(mapextent, tifproj)
-
-    # add coastlines
-    ax.coastlines(resolution='10m', color='navy', linewidth=1)
-
-    # add lakes and rivers
-    ax.add_feature(cartopy.feature.LAKES, alpha=0.5)
-    ax.add_feature(cartopy.feature.RIVERS)
-
-    # add borders
-    BORDERS.scale = '10m'
-    ax.add_feature(BORDERS, color='red')
-
-    # format the gridline positions nicely
-    xticks, yticks = get_gridlines(mapextent[0], mapextent[1],
-                                   mapextent[2], mapextent[3],
-                                   nticks=10)
-
-    # add gridlines
-    gl = ax.gridlines(crs=tifproj, xlocs=xticks, ylocs=yticks,
-                      linestyle='--', color='grey', alpha=1, linewidth=1)
-
-    # add ticks
-    ax.set_xticks(xticks, crs=tifproj)
-    ax.set_yticks(yticks, crs=tifproj)
-
-    # stagger x gridline / tick labels
-    labels = ax.set_xticklabels(xticks)
-    for i, label in enumerate(labels):
-        label.set_y(label.get_position()[1] - (i % 2) * 0.075)
-
-    # add scale bar
-    scale_bar_left(ax, bars=4, length=40, col='olivedrab')
-
-    # show the map
-    plt.show()
-
-    # save it to a file
-    fig.savefig(plotfile)
-'''
 
 def draw_scale_bar(ax, tifproj, bars=4, length=None, location=(0.1, 0.8), linewidth=5, col='black', zorder=20):
     """
