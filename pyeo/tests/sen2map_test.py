@@ -1100,6 +1100,8 @@ def geotif2maps(tiffroot, shapefile, plotdir, bands=[5,4,3], id='map', zoom=1, x
 # MAIN
 #############################################################################
 
+bands = [4,3,2] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
+
 # go to working directory
 os.chdir(wd)
 
@@ -1141,29 +1143,27 @@ if len(allscenes) > 0:
         footprintx = footprint[1::2]  # list slicing to separate longitudes: list[start:stop:step]
         os.chdir(datadir + allscenes[x] + "/" + "GRANULE" + "/") # go to the Granule subdirectory
         sdir = listdir()[0]  # only one subdirectory expected in this directory
-        imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA" + "/"
+        imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA/R10m/"
         os.chdir(imgdir) # go to the image data subdirectory
         sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
-        print(sbands)
         nbands = len(sbands)
         for i, iband in enumerate(sbands):
             bandx = gdal.Open(iband, gdal.GA_Update) # open a band
-            ncols = bandx.RasterXSize
-            nrows = bandx.RasterYSize
-            geotrans = bandx.GetGeoTransform()
-            proj = bandx.GetProjection()
-            inproj = osr.SpatialReference()
-            inproj.ImportFromWkt(proj)
-            ulx = geotrans[0]  # Upper Left corner coordinate in x
-            uly = geotrans[3]  # Upper Left corner coordinate in y
-            pixelWidth = geotrans[1]  # pixel spacing in map units in x
-            pixelHeight = geotrans[5]  # (negative) pixel spacing in y
-            projcs = inproj.GetAuthorityCode('PROJCS')
-            projection = ccrs.epsg(projcs)
-            extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
-            print("Band %s has %6d columns, %6d rows and a %d m resolution.", % (iband, ncols, nrows, pixelWidth))
             data = bandx.ReadAsArray()
             if i == 0:
+                ncols = bandx.RasterXSize
+                nrows = bandx.RasterYSize
+                geotrans = bandx.GetGeoTransform()
+                proj = bandx.GetProjection()
+                inproj = osr.SpatialReference()
+                inproj.ImportFromWkt(proj)
+                ulx = geotrans[0]  # Upper Left corner coordinate in x
+                uly = geotrans[3]  # Upper Left corner coordinate in y
+                pixelWidth = geotrans[1]  # pixel spacing in map units in x
+                pixelHeight = geotrans[5]  # (negative) pixel spacing in y
+                projcs = inproj.GetAuthorityCode('PROJCS')
+                projection = ccrs.epsg(projcs)
+                extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
                 rgbdata = np.zeros([len(sbands), data.shape[0], data.shape[1]],
                                dtype=np.uint8)  # recepticle for stretched RGB pixel values
             rgbdata[i, :, :] = np.uint8(stretch(data)[0]) # histogram stretching and converting to 8 bit unsigned integers
