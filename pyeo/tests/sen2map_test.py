@@ -1120,37 +1120,87 @@ if not os.path.exists(mapdir):
     os.mkdir(mapdir)
 
 # get Sentinel L2A scene list from data directory
-#   i.e. get list of all data subdirectories (one for each image)
-allscenes = [f.path for f in os.scandir(datadir) if f.is_dir() and f.endswith(".SAFE")]
+allscenes = [f for f in listdir(datadir) if isdir(join(datadir, f))]
 allscenes = sorted(allscenes)
 print('\nList of Sentinel-2 scenes:')
 for scene in allscenes:
-    print(scene)
+    if not(scene.endswith('.SAFE')):
+        allscenes.remove(scene)  # remove all directory names except SAFE files
+    else:
+        print(scene)
 print('\n')
 
-# read Sentinel L2A image (3 band files) in the data directory
+if len(allscenes) > 0:
+    for x in range(len(allscenes)):
+        print("Reading scene", x + 1, ":", allscenes[x])
+        # set working directory to the Sentinel scene subdirectory
+        scenedir = datadir + allscenes[x] + "/"
+        os.chdir(scenedir)
+        # to get the spatial footprint of the scene from the metadatafile:
+        # get the list of filenames ending in .xml, but exclude 'INSPIRE.xml'
+        xmlfiles = [f for f in os.listdir(scenedir) if f.endswith('.xml') & (1 - f.startswith('INSPIRE'))]
+        # print('Reading footprint from ' + xmlfiles[0])
+        with open(xmlfiles[0], errors='ignore') as f: # use the first .xml file in the directory
+            content = f.readlines()
+        content = [x.strip() for x in content] # remove whitespace characters like `\n` at the end of each line
+        footprint = [x for x in content if x.startswith('<EXT_POS_LIST>')] # find the footprint in the metadata
+        footprint = footprint[0].split(" ") # the first element is a string, extract and split it
+        footprint[0] = footprint[0].split(">")[1] #   and split off the metadata text
+        footprint = footprint[:-1] #   and remove the metadata text at the end of the list
+        footprint = [float(s) for s in footprint] # convert the string list to floats
+        footprinty = footprint[0::2]  # list slicing to separate latitudes: list[start:stop:step]
+        footprintx = footprint[1::2]  # list slicing to separate longitudes: list[start:stop:step]
+        os.chdir(datadir + allscenes[x] + "/" + "GRANULE" + "/") # go to the Granule subdirectory
+        sdir = listdir()[0]  # only one subdirectory expected in this directory
+        imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA" + "/"
+        os.chdir(imgdir) # go to the image data subdirectory
+        # get the list of filenames for all bands in .jp2 format
+        sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')])
+        nbands = len(sbands)
+        for i, iband in enumerate(sbands):
+            bandx = gdal.Open(iband, gdal.GA_Update) # open a band
+            ncols = bandx.RasterXSize
+            nrows = bandx.RasterYSize
+            geotrans = bandx.GetGeoTransform()
+            proj = bandx.GetProjection()
+            inproj = osr.SpatialReference()
+            inproj.ImportFromWkt(proj)
+            ulx = geotrans[0]  # Upper Left corner coordinate in x
+            uly = geotrans[3]  # Upper Left corner coordinate in y
+            pixelWidth = geotrans[1]  # pixel spacing in map units in x
+            pixelHeight = geotrans[5]  # (negative) pixel spacing in y
+            projcs = inproj.GetAuthorityCode('PROJCS')
+            projection = ccrs.epsg(projcs)
+            extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
+            print("Band %s has %6d columns, %6d rows and a %d m resolution." \
+                  % (iband, ncols, nrows, pixelWidth))
+            data = bandx.ReadAsArray()
+            if i == 0:
+                rgbdata = np.zeros([len(sbands), data.shape[0], data.shape[1]],
+                               dtype=np.uint8)  # recepticle for stretched RGB pixel values
+            rgbdata[i, :, :] = np.uint8(stretch(data)[0]) # histogram stretching and converting to 8 bit unsigned integers
+            bandx = None # close GDAL file
+        # plot the image as RGB on a cartographic map
+        # Overview map: make a map plot of the tiff file in the image projection
+        print('Calling geotif2maps:')
+        print('   tiffroot = ' + tiffroot)
+        print('   shapefile = ' + shapedir + shapefile)
+        print('   plotdir = ' + plotdir)
+        print('   bands = 5,4,3')
+        print('   zoom = 1')
+        print('   offset = 0,0')
+        mapfile = mapdir + allscenes[x].split('.')[0] + '.jpg'
+        s = '_'  # separator for string join
+        title = s.join(tiffdirs[0].split('_')[:-1]) # make map title
+        width = (extent[1] - extent[0]) * zoom # work out the width and height of the zoom image
+        height = (extent[3] - extent[2]) * zoom
+        cx = (extent[0] + extent[1]) / 2 + xoffset # calculate centre point positions
+        cy = (extent[2] + extent[3]) / 2 + yoffset
+        mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2) # create a new tuple 'mapextent'
+        map_it(rgbdata, tifproj=projection, mapextent=mapextent, imgextent=extent,
+               shapefile=shapefile, plotfile=plotfile, plottitle=title, zoom=1, xoffset=0, yoffset=0) # call mapping routine
 
-
-# plot the image as RGB on a cartographic map
-
-
-# Overview map: make a map plot of the tiff file in the image projection
 '''
-print('Calling geotif2maps:')
-print('   tiffroot = ' + tiffroot)
-print('   shapefile = ' + shapedir + shapefile)
-print('   plotdir = ' + plotdir)
-print('   bands = 5,4,3')
-print('   zoom = 1')
-print('   offset = 0,0')
-'''
-
-'''
-nfiles, mapfiles = geotif2maps(tiffroot, shapedir + shapefile, plotdir, bands=[5, 4, 3],
-                               id='map1', zoom=1, xoffset=0, yoffset=0)
-print('Made map files:')
-for f in mapfiles: print(f)
-
 # Zoom out, i.e. zoom factor greater than 1
 nfiles, mapfiles = geotif2maps(tiffroot, shapedir + shapefile, plotdir, bands=[5, 4, 3],
                                id='map2', zoom=2, xoffset=0, yoffset=0)
@@ -1174,7 +1224,6 @@ nfiles, mapfiles = geotif2maps(tiffroot, shapedir + shapefile, plotdir, bands=[5
                                id='map5', zoom=1/8, xoffset=round(-109800*0.25), yoffset=round(-109800*0.1))
 print('Made map files:')
 for f in mapfiles: print(f)
-'''
 
 # Zoom in even more
 nfiles, mapfiles = geotif2maps(tiffroot, shapedir + shapefile, plotdir, bands=[5, 4, 3],
@@ -1187,3 +1236,4 @@ nfiles, mapfiles = geotif2maps(tiffroot, shapedir + shapefile, plotdir, bands=[5
                                id='map7', zoom=1/256, xoffset=round(-109800*0.311), yoffset=round(-109800*0.134))
 print('Made map files:')
 for f in mapfiles: print(f)
+'''
