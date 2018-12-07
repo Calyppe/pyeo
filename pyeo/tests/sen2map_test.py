@@ -1182,16 +1182,14 @@ if len(allscenes) > 0:
             bandx = None # close GDAL file
         # plot the image as RGB on a cartographic map
         # Overview map: make a map plot of the tiff file in the image projection
-        print('Calling geotif2maps:')
-        print('   tiffroot = ' + tiffroot)
-        print('   shapefile = ' + shapedir + shapefile)
-        print('   plotdir = ' + plotdir)
+        mapfile = mapdir + allscenes[x].split('.')[0] + '.jpg'
+        print('   geojson file = ' + geojsondir + geojsonfile)
+        print('   output map file = ' + mapfile)
         print('   bands = 5,4,3')
         print('   zoom = 1')
-        print('   offset = 0,0')
-        mapfile = mapdir + allscenes[x].split('.')[0] + '.jpg'
+        print('   offset = 0, 0')
         s = '_'  # separator for string join
-        title = s.join(tiffdirs[0].split('_')[:-1]) # make map title
+        title = allscenes[x].split('.')[0] # make map title
         width = (extent[1] - extent[0]) * zoom # work out the width and height of the zoom image
         height = (extent[3] - extent[2]) * zoom
         cx = (extent[0] + extent[1]) / 2 + xoffset # calculate centre point positions
