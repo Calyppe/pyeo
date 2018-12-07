@@ -1100,7 +1100,7 @@ def geotif2maps(tiffroot, shapefile, plotdir, bands=[5,4,3], id='map', zoom=1, x
 # MAIN
 #############################################################################
 
-bands = [4,3,2] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
+bands = ['B04_10m', 'B03_10m', 'B02_10m'] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
 
 # go to working directory
 os.chdir(wd)
@@ -1141,11 +1141,15 @@ if len(allscenes) > 0:
         footprint = [float(s) for s in footprint] # convert the string list to floats
         footprinty = footprint[0::2]  # list slicing to separate latitudes: list[start:stop:step]
         footprintx = footprint[1::2]  # list slicing to separate longitudes: list[start:stop:step]
-        os.chdir(datadir + allscenes[x] + "/" + "GRANULE" + "/") # go to the Granule subdirectory
-        sdir = listdir()[0]  # only one subdirectory expected in this directory
         imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA/R10m/"
         os.chdir(imgdir) # go to the image data subdirectory
         sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
+        for b, band in enumerate(sbands):
+            if not (band.endswith(bands[b] + '.SAFE')):
+                sbands.remove(band)  # only keep 3 bands for display
+            else:
+                print(band)
+        print('\n')
         nbands = len(sbands)
         for i, iband in enumerate(sbands):
             bandx = gdal.Open(iband, gdal.GA_Update) # open a band
