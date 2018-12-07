@@ -1114,22 +1114,25 @@ def geotif2maps(tiffroot, shapefile, plotdir, bands=[5,4,3], id='map', zoom=1, x
 # go to working directory
 os.chdir(wd)
 
+# make a 'maps' directory (if it does not exist yet) for output files
+if not os.path.exists(mapdir):
+    print("Creating directory: ", mapdir)
+    os.mkdir(mapdir)
 
-###################################################
-# process all Sentinel 2 files in the data directory to 10 m resolution Geotiff format
-###################################################
-tiffroot, tiffdirs = convert2geotif(datadir)
+# get Sentinel L2A scene list from data directory
+#   i.e. get list of all data subdirectories (one for each image)
+allscenes = [f.path for f in os.scandir(datadir) if f.is_dir() and f.endswith(".SAFE")]
+allscenes = sorted(allscenes)
+print('\nList of Sentinel-2 scenes:')
+for scene in allscenes:
+    print(scene)
+print('\n')
+
+# read Sentinel L2A image (3 band files) in the data directory
 
 
-###################################################
-# process all tiff subdirectories into jpeg maps
-###################################################
+# plot the image as RGB on a cartographic map
 
-# make a 'plots' directory (if it does not exist yet) for map output files
-plotdir = wd + 'plots_' + shapefile.split(".")[0] + "/"
-if not os.path.exists(plotdir):
-    print("Creating directory: ", plotdir)
-    os.mkdir(plotdir)
 
 # Overview map: make a map plot of the tiff file in the image projection
 '''
