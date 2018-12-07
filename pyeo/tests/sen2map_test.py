@@ -50,7 +50,7 @@ wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on L
 geojsondir = '/scratch/clcr/shared/heiko/marque_de_com/aois/' # this is where the  geojson file is located
 datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
 mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
-geojsonfile = 'marque_de_com_really_simple.geojson' # geojson file of test area
+geojsonfile = geojsondir + 'marque_de_com_really_simple.geojson' # geojson file of test area
 bands = [5, 4, 3]  # band selection for RGB
 rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
 
@@ -413,64 +413,58 @@ def draw_scale_bar(ax, tifproj, bars=4, length=None, location=(0.1, 0.8), linewi
                 horizontalalignment='center', verticalalignment='bottom',
                 color=col, zorder=zorder)
 
-def map_it(rgbdata, tifproj, mapextent, imgextent, shapefile, plotfile='map.jpg',
-                 plottitle='', figsizex=8, figsizey=8):
+
+def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='map.jpg',
+                 maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     New map_it function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
-
     rgbdata = numpy array of the red, green and blue channels, made by read_sen2rgb
-    tifproj = map projection of the tiff files from which the rgbdata originate
+    imageproj = map projection of the image bands
     mapextent = extent of the map to be plotted in map coordinates
     imgextent = extent of the satellite image in map coordinates
-    shapefile = shapefile name to be plotted on top of the map
-    shpproj = map projection of the shapefile
-    plotfile = output filename for the map plot
-    plottitle = text to be written above the map
+
+    Options:
+    geojsonfile = geojson file name to be plotted on top of the map
+    mapfile = output filename for the map
+    maptitle = text to be written above the map
     figsizex = width of the figure in inches
     figsizey = height of the figure in inches
 
+    N.B.
+    geojsonproj = map projection of the vector file
     ax1 is the axes object for the main map area
     ax2 is the axes object for the location overview map in the bottom left corner
     ax3 is the axes object for the entire figure area
     ax4 is the axes object for the north arrow
     ax5 is the axes object for the map legend
     ax6 is the axes object for the map title
-
     '''
 
-    # get shapefile projection from the file
-    # get driver to read a shapefile and open it
-    driver = ogr.GetDriverByName('ESRI Shapefile')
-    dataSource = driver.Open(shapefile, 0)
-    if dataSource is None:
-        sys.exit('Could not open ' + shapefile)  # exit with an error code
-    # get the layer from the shapefile
-    layer = dataSource.GetLayer()
-
-    # get the projection information and convert to wkt
-    projsr = layer.GetSpatialRef()
-    #print(projsr)
-    projwkt = projsr.ExportToWkt()
-    #print(projwkt)
-    projosr = osr.SpatialReference()
-    # convert wkt projection to Cartopy projection
-    projosr.ImportFromWkt(projwkt)
-    #print(projosr)
-    projcs = projosr.GetAuthorityCode('PROJCS')
-    if projcs == None:
-        print("No EPSG code found in shapefile. Using EPSG 4326 instead. Make sure the .prj file contains AUTHORITY={CODE}.")
-        projcs = 4326 # if no EPSG code given, set to geojson default
-    print(projcs)
-    if projcs == 4326:
-        shapeproj = ccrs.PlateCarree()
-    else:
-        shapeproj = ccrs.epsg(projcs)   # Returns the projection which corresponds to the given EPSG code.
-                                        # The EPSG code must correspond to a “projected coordinate system”,
-                                        # so EPSG codes such as 4326 (WGS-84) which define a “geodetic
-                                        # coordinate system” will not work.
-    print("\nShapefile projection:")
-    print(shapeproj)
+    if geojsonfile:
+        driver = ogr.GetDriverByName('GeoJSON')
+        dataSource = driver.Open(geojsonfile, 0)
+        if dataSource is None:
+            sys.exit('Could not open ' + geojsonfile)  # exit with an error code
+        layer = dataSource.GetLayer()
+        projsr = layer.GetSpatialRef()
+        projwkt = projsr.ExportToWkt()
+        projosr = osr.SpatialReference()
+        projosr.ImportFromWkt(projwkt)
+        projcs = projosr.GetAuthorityCode('PROJCS')
+        if projcs == None:
+            print("No EPSG code found in shapefile. Using EPSG 4326 instead. Make sure the .prj file contains AUTHORITY={CODE}.")
+            projcs = 4326 # if no EPSG code given, set to geojson default
+        print(projcs)
+        if projcs == 4326:
+            geojsonproj = ccrs.PlateCarree()
+        else:
+            geojsonproj = ccrs.epsg(projcs)   # Returns the projection which corresponds to the given EPSG code.
+                                              # The EPSG code must correspond to a “projected coordinate system”,
+                                              # so EPSG codes such as 4326 (WGS-84) which define a “geodetic
+                                              # coordinate system” will not work.
+        print("\nVector file projection:")
+        print(geojsonproj)
 
     # make the figure
     fig = plt.figure(figsize=(figsizex, figsizey))
@@ -692,12 +686,10 @@ def map_it(rgbdata, tifproj, mapextent, imgextent, shapefile, plotfile='map.jpg'
     ax2.add_feature(cfeature.BORDERS, edgecolor='red', linestyle='-', zorder=3)
     ax2.add_feature(cfeature.OCEAN, zorder=2)
 
-    # overlay shapefile
-    # TODO change linewidth = 1
-    shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
-                                   edgecolor='yellow', linewidth=2,
-                                   facecolor='none')
-    ax2.add_feature(shape_feature, zorder=4)
+    if geojsonfile:
+        thisfeature = ShapelyFeature(Reader(geojsonfile).geometries(), crs=geojsonproj,
+                                   edgecolor='yellow', linewidth=1, facecolor='none')
+        ax2.add_feature(thisfeature, zorder=4)
 
     ax2.gridlines(zorder=3)
 
@@ -761,12 +753,9 @@ def map_it(rgbdata, tifproj, mapextent, imgextent, shapefile, plotfile='map.jpg'
     # end for
 
     # do some example lines with colors
-    river = mlines.Line2D([], [], color='blue', marker='',
-                          markersize=15, label='river')
-    coast = mlines.Line2D([], [], color='grey', marker='',
-                          markersize=15, label='coast')
-    bdy = mlines.Line2D([], [], color='red', marker='',
-                        markersize=15, label='border')
+    river = mlines.Line2D([], [], color='blue', marker='', markersize=15, label='river')
+    coast = mlines.Line2D([], [], color='grey', marker='', markersize=15, label='coast')
+    bdy = mlines.Line2D([], [], color='red', marker='', markersize=15, label='border')
     handles.append(river)
     handles.append(coast)
     handles.append(bdy)
@@ -783,7 +772,7 @@ def map_it(rgbdata, tifproj, mapextent, imgextent, shapefile, plotfile='map.jpg'
 
     # save it to a file
     # plotfile = plotdir + allscenes[x].split('.')[0] + '_map1.jpg'
-    fig.savefig(plotfile)
+    fig.savefig(mapfile)
     plt.close(fig)
 
 
@@ -1183,7 +1172,7 @@ if len(allscenes) > 0:
         # plot the image as RGB on a cartographic map
         # Overview map: make a map plot of the tiff file in the image projection
         mapfile = mapdir + allscenes[x].split('.')[0] + '.jpg'
-        print('   geojson file = ' + geojsondir + geojsonfile)
+        print('   geojson file = ' + geojsonfile)
         print('   output map file = ' + mapfile)
         print('   bands = 5,4,3')
         print('   zoom = 1')
@@ -1195,8 +1184,8 @@ if len(allscenes) > 0:
         cx = (extent[0] + extent[1]) / 2 + xoffset # calculate centre point positions
         cy = (extent[2] + extent[3]) / 2 + yoffset
         mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2) # create a new tuple 'mapextent'
-        map_it(rgbdata, tifproj=projection, mapextent=mapextent, imgextent=extent,
-               shapefile=shapefile, plotfile=plotfile, plottitle=title, zoom=1, xoffset=0, yoffset=0) # call mapping routine
+        map_it(rgbdata, imageproj=projection, mapextent=mapextent, imgextent=extent, geojsonfile=geojsonfile,
+               mapfile=mapfile, maptitle=title, zoom=1, xoffset=0, yoffset=0) # call mapping routine
 
 '''
 # Zoom out, i.e. zoom factor greater than 1
