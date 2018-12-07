@@ -1147,7 +1147,7 @@ if len(allscenes) > 0:
         os.chdir(imgdir) # go to the image data subdirectory
         sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
         for b, band in enumerate(sbands):
-            if not (band.endswith(bands[b] + '.SAFE')):
+            if not ((band.endswith(bands[0]+'.SAFE')) or (band.endswith(bands[1]+'.SAFE')) or (band.endswith(bands[2]+'.SAFE'))):
                 sbands.remove(band)  # only keep 3 bands for display
             else:
                 print(band)
