@@ -1141,6 +1141,8 @@ if len(allscenes) > 0:
         footprint = [float(s) for s in footprint] # convert the string list to floats
         footprinty = footprint[0::2]  # list slicing to separate latitudes: list[start:stop:step]
         footprintx = footprint[1::2]  # list slicing to separate longitudes: list[start:stop:step]
+        os.chdir(datadir + allscenes[x] + "/" + "GRANULE" + "/")
+        sdir = listdir()[0]  # only one subdirectory expected in this directory
         imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA/R10m/"
         os.chdir(imgdir) # go to the image data subdirectory
         sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
