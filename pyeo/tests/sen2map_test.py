@@ -1143,8 +1143,8 @@ if len(allscenes) > 0:
         sdir = listdir()[0]  # only one subdirectory expected in this directory
         imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA" + "/"
         os.chdir(imgdir) # go to the image data subdirectory
-        # get the list of filenames for all bands in .jp2 format
-        sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')])
+        sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
+        print(sbands)
         nbands = len(sbands)
         for i, iband in enumerate(sbands):
             bandx = gdal.Open(iband, gdal.GA_Update) # open a band
@@ -1161,8 +1161,7 @@ if len(allscenes) > 0:
             projcs = inproj.GetAuthorityCode('PROJCS')
             projection = ccrs.epsg(projcs)
             extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
-            print("Band %s has %6d columns, %6d rows and a %d m resolution." \
-                  % (iband, ncols, nrows, pixelWidth))
+            print("Band %s has %6d columns, %6d rows and a %d m resolution.", % (iband, ncols, nrows, pixelWidth))
             data = bandx.ReadAsArray()
             if i == 0:
                 rgbdata = np.zeros([len(sbands), data.shape[0], data.shape[1]],
