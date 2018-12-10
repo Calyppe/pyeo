@@ -453,7 +453,7 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
         projosr.ImportFromWkt(projwkt)
         projcs = projosr.GetAuthorityCode('PROJCS')
         if projcs == None:
-            print("No EPSG code found in shapefile. Using EPSG 4326 instead. Make sure the .prj file contains AUTHORITY={CODE}.")
+            print("No EPSG code found in vector file. Using EPSG 4326 instead. Make sure the .prj file contains AUTHORITY={CODE}.")
             projcs = 4326 # if no EPSG code given, set to geojson default
         print(projcs)
         if projcs == 4326:
@@ -498,12 +498,12 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     height = 0.87
 
     rect = [left, bottom, width, height]
-    ax1 = plt.axes(rect, projection=tifproj, )
+    ax1 = plt.axes(rect, projection=imageproj, )
 
     # add 10% margin below the main map area of the image
     extent1 = (mapextent[0], mapextent[1],
                mapextent[2] - 0.1 * (mapextent[3] - mapextent[2]), mapextent[3])
-    ax1.set_extent(extent1, crs=tifproj)
+    ax1.set_extent(extent1, crs=imageproj)
 
     #LAND_10m = cartopy.feature.NaturalEarthFeature('physical', 'land', '10m',
     #                                               edgecolor='face',
@@ -531,11 +531,11 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     xticks, yticks = get_gridlines(mapextent[0], mapextent[1], mapextent[2], mapextent[3], nticks=6)
 
     # plot the gridlines
-    gl = ax1.gridlines(crs=tifproj, xlocs=xticks, ylocs=yticks, linestyle='--', color='grey',
+    gl = ax1.gridlines(crs=imageproj, xlocs=xticks, ylocs=yticks, linestyle='--', color='grey',
                        alpha=1, linewidth=1, zorder=1.3)
     # add ticks
-    ax1.set_xticks(xticks[1:-1], crs=tifproj)
-    ax1.set_yticks(yticks[1:-1], crs=tifproj)
+    ax1.set_xticks(xticks[1:-1], crs=imageproj)
+    ax1.set_yticks(yticks[1:-1], crs=imageproj)
 
     # stagger x gridline / tick labels
     #labels = ax1.set_xticklabels(xticks)
@@ -556,6 +556,12 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     img = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
                      extent=imgextent, origin='upper', zorder=1)
 
+    #  read geoJson file and plot it onto the tiff image map
+    import json
+    data = json.loads(datastring)
+    data['features'][0]['geometry']  # Your first point
+
+
     #  read shapefile and plot it onto the tiff image map
     shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
                                    edgecolor='yellow', linewidth=2,
@@ -571,7 +577,7 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
 
     # Get the limits of the axis in map coordinates
     # get axes extent in map coordinates
-    x0, x1, y0, y1 = ax1.get_extent(crs=tifproj)
+    x0, x1, y0, y1 = ax1.get_extent(crs=imageproj)
 
     # length of scale bar segments adds up to 33% of the map width
     length = (x1 - x0) / 1000 / 3 / bars # in km
@@ -616,7 +622,7 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
         bar_yt = sby + thickness
 
         # Plot the scalebar label for that chunk
-        ax1.text(bar_xt, bar_yt, str(i * length), transform=tifproj,
+        ax1.text(bar_xt, bar_yt, str(i * length), transform=imageproj,
                  horizontalalignment='center', verticalalignment='bottom', color='black', zorder=4)
 
         # work out the position of the next chunk of the bar
@@ -628,14 +634,14 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     bar_yt = sby + thickness
 
     # Plot the last scalebar label
-    ax1.text(bar_xt, bar_yt, str(length * bars), transform=tifproj,
+    ax1.text(bar_xt, bar_yt, str(length * bars), transform=imageproj,
              horizontalalignment='center', verticalalignment='bottom', color='black', zorder=4)
 
     # work out xy coordinates for the position of the unit annotation
     bar_xt = sbx + length * bars * 500
     bar_yt = sby - thickness * 3
     # add the text annotation below the scalebar
-    t = ax1.text(bar_xt, bar_yt, 'km', transform=tifproj,
+    t = ax1.text(bar_xt, bar_yt, 'km', transform=imageproj,
                  horizontalalignment='center', verticalalignment='bottom', color='black', zorder=4)
 
     # do not draw the bounding box around the scale bar area. This seems to be the only way to make this work.
@@ -696,7 +702,7 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     # add location box of the main map
     box_x = [x0, x1, x1, x0, x0]
     box_y = [y0, y0, y1, y1, y0]
-    plt.plot(box_x, box_y, color='black', transform=tifproj, linewidth=1, zorder=6)
+    plt.plot(box_x, box_y, color='black', transform=imageproj, linewidth=1, zorder=6)
 
     # -------------------------------- Title -----------------------------
     # set up map title at top right of figure
@@ -1091,7 +1097,7 @@ def geotif2maps(tiffroot, shapefile, plotdir, bands=[5,4,3], id='map', zoom=1, x
         mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2)
 
         # call mapping routine
-        map_it(rgbdata, tifproj=projection, mapextent=mapextent, imgextent=extent,
+        map_it(rgbdata, imageproj=projection, mapextent=mapextent, imgextent=extent,
                shapefile=shapefile, plotfile=plotfile, plottitle=title)
 
     return len(mapfiles), mapfiles
@@ -1182,15 +1188,14 @@ if len(allscenes) > 0:
         zoom = 1
         xoffset = 0
         yoffset = 0
-        s = '_'  # separator for string join
-        title = allscenes[x].split('.')[0] # make map title
         width = (extent[1] - extent[0]) * zoom # work out the width and height of the zoom image
         height = (extent[3] - extent[2]) * zoom
         cx = (extent[0] + extent[1]) / 2 + xoffset # calculate centre point positions
         cy = (extent[2] + extent[3]) / 2 + yoffset
         mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2) # create a new tuple 'mapextent'
         map_it(rgbdata, imageproj=projection, mapextent=mapextent, imgextent=extent, geojsonfile=geojsonfile,
-               mapfile=mapfile, maptitle=title, zoom=1, xoffset=0, yoffset=0) # call mapping routine
+                mapfile=mapfile, maptitle=allscenes[x].split('.')[0], zoom=zoom, xoffset=xoffset, yoffset=yoffset)
+                # call mapping routine
 
 '''
 # Zoom out, i.e. zoom factor greater than 1
