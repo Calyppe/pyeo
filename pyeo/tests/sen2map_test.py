@@ -415,14 +415,13 @@ def draw_scale_bar(ax, tifproj, bars=4, length=None, location=(0.1, 0.8), linewi
                 color=col, zorder=zorder)
 
 
-def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='map.jpg',
+def map_it(rgbdata, imageproj, imgextent, geojsonfile=None, mapfile='map.jpg',
                  maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     New map_it function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
     rgbdata = numpy array of the red, green and blue channels, made by read_sen2rgb
     imageproj = map projection of the image bands
-    mapextent = extent of the map to be plotted in map coordinates
     imgextent = extent of the satellite image in map coordinates
 
     Options:
@@ -442,28 +441,19 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     ax6 is the axes object for the map title
     '''
 
+    # work out the map extent based on the image extent plus a margin
+    width = (imgextent[1] - imgextent[0]) * zoom  # work out the width and height of the zoom image
+    height = (imgextent[3] - imgextent[2]) * zoom
+    cx = (imgextent[0] + imgextent[1]) / 2 + xoffset  # calculate centre point positions
+    cy = (imgextent[2] + imgextent[3]) / 2 + yoffset
+    mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2)  # create a new tuple 'mapextent'
+
     if geojsonfile:
         driver = ogr.GetDriverByName('GeoJSON')
         dataSource = driver.Open(geojsonfile, 0)
         if dataSource is None:
             sys.exit('Could not open ' + geojsonfile)  # exit with an error code
-        layer = dataSource.GetLayer()
-        projsr = layer.GetSpatialRef()
-        projwkt = projsr.ExportToWkt()
-        projosr = osr.SpatialReference()
-        projosr.ImportFromWkt(projwkt)
-        projcs = projosr.GetAuthorityCode('PROJCS')
-        if projcs == None:
-            print("No EPSG code found in vector file. Using EPSG 4326 instead. Make sure the .prj file contains AUTHORITY={CODE}.")
-            projcs = 4326 # if no EPSG code given, set to geojson default
-        print(projcs)
-        if projcs == 4326:
-            geojsonproj = ccrs.PlateCarree()
-        else:
-            geojsonproj = ccrs.epsg(projcs)   # Returns the projection which corresponds to the given EPSG code.
-                                              # The EPSG code must correspond to a “projected coordinate system”,
-                                              # so EPSG codes such as 4326 (WGS-84) which define a “geodetic
-                                              # coordinate system” will not work.
+        geojsonproj = ccrs.PlateCarree() # all geojson files are in WGS84 projection system
         print("\nVector file projection:")
         print(geojsonproj)
 
@@ -559,11 +549,14 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
 
     #  read geoJson file and plot it onto the map
     if geojsonfile:
-        with open(geojsonfile, "r") as read_file:
-            vec = json.load(read_file)
-            feat = vec['features'][0]['geometry']
-            print(feat)
-            ax1.add_feature(feat, crs=geojsonproj, edgecolor='yellow', linewidth=1, facecolor='none', zorder=1.2)
+        driver = ogr.GetDriverByName('GeoJSON')
+        dataSource = driver.Open(geojsonfile, 0)
+        if dataSource is None:
+            sys.exit('Could not open ' + geojsonfile)  # exit with an error code
+        vec = json.load(dataSource)
+        feat = vec['features'][0]['geometry']
+        print(feat)
+        ax1.add_feature(feat, crs=geojsonproj, edgecolor='yellow', linewidth=1, facecolor='none', zorder=1.2)
 
     # ------------------------scale bar ----------------------------
     # adapted from https://stackoverflow.com/questions/32333870/how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot/35705477#35705477
@@ -699,7 +692,7 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     height = 0.04
     rect = [left, bottom, width, height]
     ax6 = plt.axes(rect)
-    ax6.text(0.5, 0.0, plottitle, ha='center', fontsize=11, fontweight='bold')
+    ax6.text(0.5, 0.0, maptitle, ha='center', fontsize=11, fontweight='bold')
     blank_axes(ax6)
 
     # ---------------------------------North Arrow  ----------------------------
@@ -1084,8 +1077,8 @@ def geotif2maps(tiffroot, shapefile, plotdir, bands=[5,4,3], id='map', zoom=1, x
         mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2)
 
         # call mapping routine
-        map_it(rgbdata, imageproj=projection, mapextent=mapextent, imgextent=extent,
-               shapefile=shapefile, plotfile=plotfile, plottitle=title)
+        map_it(rgbdata, imageproj=projection, imgextent=extent,
+               shapefile=shapefile, plotfile=plotfile, maptitle=title)
 
     return len(mapfiles), mapfiles
 
@@ -1175,12 +1168,7 @@ if len(allscenes) > 0:
         zoom = 1
         xoffset = 0
         yoffset = 0
-        width = (extent[1] - extent[0]) * zoom # work out the width and height of the zoom image
-        height = (extent[3] - extent[2]) * zoom
-        cx = (extent[0] + extent[1]) / 2 + xoffset # calculate centre point positions
-        cy = (extent[2] + extent[3]) / 2 + yoffset
-        mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2) # create a new tuple 'mapextent'
-        map_it(rgbdata, imageproj=projection, mapextent=mapextent, imgextent=extent, geojsonfile=geojsonfile,
+        map_it(rgbdata, imageproj=projection, imgextent=extent, geojsonfile=geojsonfile,
                 mapfile=mapfile, maptitle=allscenes[x].split('.')[0], zoom=zoom, xoffset=xoffset, yoffset=yoffset)
                 # call mapping routine
 
