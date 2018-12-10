@@ -549,14 +549,12 @@ def map_it(rgbdata, imageproj, imgextent, geojsonfile=None, mapfile='map.jpg',
 
     #  read geoJson file and plot it onto the map
     if geojsonfile:
-        driver = ogr.GetDriverByName('GeoJSON')
-        dataSource = driver.Open(geojsonfile, 0)
-        if dataSource is None:
-            sys.exit('Could not open ' + geojsonfile)  # exit with an error code
-        vec = json.load(dataSource)
-        feat = vec['features'][0]['geometry']
-        print(feat)
-        ax1.add_feature(feat, crs=geojsonproj, edgecolor='yellow', linewidth=1, facecolor='none', zorder=1.2)
+        with open(geojsonfile) as f:
+            features = json.load(f)
+        for feature in features['features']:
+            feat = feature['geometry']
+            print(feat)
+            ax1.add_feature(feat, edgecolor='yellow', linewidth=1, facecolor='none', zorder=1.2)
 
     # ------------------------scale bar ----------------------------
     # adapted from https://stackoverflow.com/questions/32333870/how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot/35705477#35705477
@@ -675,7 +673,7 @@ def map_it(rgbdata, imageproj, imgextent, geojsonfile=None, mapfile='map.jpg',
 
     #  read geoJson file and plot it onto the overview map
     if geojsonfile:
-        ax2.add_feature(feat, crs=geojsonproj, edgecolor='yellow', linewidth=1, facecolor='none', zorder=4)
+        ax2.add_feature(feat, edgecolor='yellow', linewidth=1, facecolor='none', zorder=4)
 
     ax2.gridlines(zorder=3)
 
@@ -758,9 +756,9 @@ def map_it(rgbdata, imageproj, imgextent, geojsonfile=None, mapfile='map.jpg',
 
     # save it to a file
     # plotfile = plotdir + allscenes[x].split('.')[0] + '_map1.jpg'
-    fig.savefig(mapfile)
+    plt.savefig(mapfile, dpi=150)
+    #fig.savefig(mapfile)
     plt.close(fig)
-
 
 def convert2geotif(datadir):
     '''
@@ -1168,9 +1166,8 @@ if len(allscenes) > 0:
         zoom = 1
         xoffset = 0
         yoffset = 0
-        map_it(rgbdata, imageproj=projection, imgextent=extent, geojsonfile=geojsonfile,
-                mapfile=mapfile, maptitle=allscenes[x].split('.')[0], zoom=zoom, xoffset=xoffset, yoffset=yoffset)
-                # call mapping routine
+        map_it(rgbdata, imageproj=projection, imgextent=extent, geojsonfile=geojsonfile, mapfile=mapfile,
+               maptitle=allscenes[x].split('.')[0], zoom=zoom, xoffset=xoffset, yoffset=yoffset)
 
 '''
 # Zoom out, i.e. zoom factor greater than 1
