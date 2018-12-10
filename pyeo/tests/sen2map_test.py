@@ -557,19 +557,13 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     img = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
                      extent=imgextent, origin='upper', zorder=1)
 
-    #  read geoJson file and plot it onto the tiff image map
-    with open(geojsonfile, "r") as read_file:
-        vec = json.load(read_file)
-    print(vec['features'][0]['geometry'])
-    # higher zorder means that the shapefile is plotted over the image
-    ax1.add_feature(vec['features'][0]['geometry'], zorder=1.2)
-
-    #  read shapefile and plot it onto the tiff image map
-    #shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
-    #                               edgecolor='yellow', linewidth=2,
-    #                               facecolor='none')
-    # higher zorder means that the shapefile is plotted over the image
-    #ax1.add_feature(shape_feature, zorder=1.2)
+    #  read geoJson file and plot it onto the map
+    if geojsonfile:
+        with open(geojsonfile, "r") as read_file:
+            vec = json.load(read_file)
+            feat = vec['features'][0]['geometry']
+            print(feat)
+            ax1.add_feature(feat, crs=geojsonproj, edgecolor='yellow', linewidth=1, facecolor='none', zorder=1.2)
 
     # ------------------------scale bar ----------------------------
     # adapted from https://stackoverflow.com/questions/32333870/how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot/35705477#35705477
@@ -656,14 +650,6 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
                              edgecolor='white', facecolor='white', zorder=3)
     ax1.add_patch(rect)
 
-    # draws boxes on the map (not used anymore)
-    #rect = patches.Rectangle((x0, y0), x1 - x0, (y1 - y0) * 0.1, linewidth=1,
-    #                         edgecolor='purple', facecolor="None", zorder=9)
-    #ax1.add_patch(rect)
-    #rect = patches.Rectangle((x0, y0 + (y1 - y0) * 0.1), x1 - x0, y1 - y0, linewidth=1,
-    #                         edgecolor='purple', facecolor="None", zorder=9)
-    #ax1.add_patch(rect)
-
     # ---------------------------------Overview Location Map ------------------------
     # define where it should go, i.e. bottom left of the figure area
     left = 0.03
@@ -694,10 +680,9 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
     ax2.add_feature(cfeature.BORDERS, edgecolor='red', linestyle='-', zorder=3)
     ax2.add_feature(cfeature.OCEAN, zorder=2)
 
+    #  read geoJson file and plot it onto the overview map
     if geojsonfile:
-        thisfeature = ShapelyFeature(Reader(geojsonfile).geometries(), crs=geojsonproj,
-                                   edgecolor='yellow', linewidth=1, facecolor='none')
-        ax2.add_feature(thisfeature, zorder=4)
+        ax2.add_feature(feat, crs=geojsonproj, edgecolor='yellow', linewidth=1, facecolor='none', zorder=4)
 
     ax2.gridlines(zorder=3)
 
