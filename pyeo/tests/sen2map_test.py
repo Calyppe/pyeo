@@ -558,8 +558,8 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
                      extent=imgextent, origin='upper', zorder=1)
 
     #  read geoJson file and plot it onto the tiff image map
-    with open("data_file.json", "r") as read_file:
-        vec = json.load(geojson)
+    with open(geojsonfile, "r") as read_file:
+        vec = json.load(read_file)
     print(vec['features'][0]['geometry'])
     # higher zorder means that the shapefile is plotted over the image
     ax1.add_feature(vec['features'][0]['geometry'], zorder=1.2)
