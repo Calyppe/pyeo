@@ -47,7 +47,7 @@ io.use_plugin('matplotlib')
 # OPTIONS
 #############################################################################
 wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on Linux HPC
-geojsondir = '/scratch/clcr/shared/heiko/marque_de_com/aois/' # this is where the  geojson file is located
+geojsondir = '/scratch/clcr/shared/heiko/aois/' # this is where the  geojson file is located
 datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
 mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
 geojsonfile = geojsondir + 'marque_de_com_really_simple.geojson' # geojson file of test area
@@ -1172,16 +1172,16 @@ if len(allscenes) > 0:
                 extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
                 rgbdata = np.zeros([len(sbands), data.shape[0], data.shape[1]],
                                dtype=np.uint8)  # recepticle for stretched RGB pixel values
-            rgbdata[i, :, :] = np.uint8(stretch(data)[0]) # histogram stretching and converting to 8 bit unsigned integers
+            rgbdata[:, :, :] = np.uint8(stretch(rgbdata)[0]) # histogram stretching and converting to 8 bit unsigned integers
             bandx = None # close GDAL file
         # plot the image as RGB on a cartographic map
         # Overview map: make a map plot of the tiff file in the image projection
         mapfile = mapdir + allscenes[x].split('.')[0] + '.jpg'
         print('   geojson file = ' + geojsonfile)
         print('   output map file = ' + mapfile)
-        print('   bands = 5,4,3')
-        print('   zoom = 1')
-        print('   offset = 0, 0')
+        zoom = 1
+        xoffset = 0
+        yoffset = 0
         s = '_'  # separator for string join
         title = allscenes[x].split('.')[0] # make map title
         width = (extent[1] - extent[0]) * zoom # work out the width and height of the zoom image
