@@ -21,6 +21,7 @@ import cartopy
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import datetime
+import json
 import matplotlib.image as im
 import matplotlib.lines as mlines
 import matplotlib.patches as patches
@@ -557,17 +558,18 @@ def map_it(rgbdata, imageproj, mapextent, imgextent, geojsonfile=None, mapfile='
                      extent=imgextent, origin='upper', zorder=1)
 
     #  read geoJson file and plot it onto the tiff image map
-    import json
-    data = json.loads(datastring)
-    data['features'][0]['geometry']  # Your first point
-
+    with open("data_file.json", "r") as read_file:
+        vec = json.load(geojson)
+    print(vec['features'][0]['geometry'])
+    # higher zorder means that the shapefile is plotted over the image
+    ax1.add_feature(vec['features'][0]['geometry'], zorder=1.2)
 
     #  read shapefile and plot it onto the tiff image map
-    shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
-                                   edgecolor='yellow', linewidth=2,
-                                   facecolor='none')
+    #shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
+    #                               edgecolor='yellow', linewidth=2,
+    #                               facecolor='none')
     # higher zorder means that the shapefile is plotted over the image
-    ax1.add_feature(shape_feature, zorder=1.2)
+    #ax1.add_feature(shape_feature, zorder=1.2)
 
     # ------------------------scale bar ----------------------------
     # adapted from https://stackoverflow.com/questions/32333870/how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot/35705477#35705477
