@@ -1145,10 +1145,9 @@ if len(allscenes) > 0:
         for b, band in enumerate(sbands):
             if not ((band.endswith(bands[0]+'.SAFE')) or (band.endswith(bands[1]+'.SAFE')) or (band.endswith(bands[2]+'.SAFE'))):
                 sbands.remove(band)  # only keep 3 bands for display
-            else:
-                print(band)
-        print(sbands)
-
+        print('Band files for map making:')
+        for band in sbands:
+            print(band)
         nbands = len(sbands)
         for i, iband in enumerate(sbands):
             bandx = gdal.Open(iband, gdal.GA_Update) # open a band
@@ -1169,8 +1168,10 @@ if len(allscenes) > 0:
                 extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
                 rgbdata = np.zeros([len(sbands), data.shape[0], data.shape[1]],
                                dtype=np.uint8)  # recepticle for stretched RGB pixel values
-            rgbdata[:, :, :] = np.uint8(stretch(rgbdata)[0]) # histogram stretching and converting to 8 bit unsigned integers
+            rgbdata[i, :, :] = data
             bandx = None # close GDAL file
+        rgbdata[:,:,:] = np.uint8(stretch(rgbdata)[0]) # histogram stretching and converting to 8 bit unsigned integers
+
         # plot the image as RGB on a cartographic map
         # Overview map: make a map plot of the tiff file in the image projection
         mytitle = allscenes[x].split('.')[0]
