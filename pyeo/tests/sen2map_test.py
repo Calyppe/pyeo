@@ -1151,14 +1151,19 @@ if len(allscenes) > 0:
             print(band)
         rgbbands = []
         for band in bands:
-            print([x for x in sbands if band in x])
-            rgbbands.append(band)
+            goodband = [x for x in sbands if band in x]
+            print(goodband)
+            rgbbands.append(goodband)
         print('Band files for map making:')
         for band in rgbbands:
             print(band)
         nbands = len(rgbbands)
+        if not nbands == 3:
+            print("Error: Number of bands must be 3 for RGB.")
+            break
         for i, iband in enumerate(rgbbands):
-            bandx = gdal.Open(iband, gdal.GA_Update) # open a band
+            print("Reading data from band: " + iband[0])
+            bandx = gdal.Open(iband[0], gdal.GA_Update) # open a band
             data = bandx.ReadAsArray()
             print(data.shape)
             if i == 0:
