@@ -303,8 +303,8 @@ def stretch(im, nbins=256, p=2, nozero=True):
     else:
         im2 = im
     # remove extreme values
-    max = np.percentile(im2.flatten(), p)
-    min = np.percentile(im2.flatten(), 100-p)
+    max = np.percentile(im2.flatten(), 100-p)
+    min = np.percentile(im2.flatten(), p)
     im2[np.where(im2 > max)] = max
     im2[np.where(im2 < min)] = min
     # get image histogram
