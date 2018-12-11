@@ -287,9 +287,13 @@ def histogram(a, bins=range(0, 256)):
     return hist
 
 
-def stretch(im, nbins=256, nozero=True):
+def stretch(im, nbins=256, p=2, nozero=True):
     """
     Performs a histogram stretch on an ndarray image.
+    im = image
+    nbins = number of histogram bins
+    p = percentile to be removed at the bottom and top end of the histogram (0-100)
+    nozero = remove zero values from histogram
     """
     # modified from http://www.janeriksolem.net/2009/06/histogram-equalization-with-python-and.html
 
@@ -298,6 +302,11 @@ def stretch(im, nbins=256, nozero=True):
         im2 = im[np.not_equal(im, 0)]
     else:
         im2 = im
+    # remove extreme values
+    max = np.percentile(im2.flatten(), p)
+    min = np.percentile(im2.flatten(), 100-p)
+    im2[np.where(im2 > max)] = max
+    im2[np.where(im2 < min)] = min
     # get image histogram
     image_histogram, bins = np.histogram(im2.flatten(), bins=nbins, density=True)
     cdf = image_histogram.cumsum()  # cumulative distribution function
