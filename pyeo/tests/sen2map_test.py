@@ -41,6 +41,9 @@ io.use_plugin('matplotlib')
 # suppress warnings when dividing by zero or nan
 np.seterr(divide='ignore', invalid='ignore')
 
+# suppress matplotlib depracation warning
+#warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+
 # The pyplot interface provides 4 commands that are useful for interactive control.
 # plt.isinteractive() returns the interactive setting True|False
 # plt.ion() turns interactive mode on
