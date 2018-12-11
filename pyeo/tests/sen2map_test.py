@@ -340,7 +340,7 @@ def read_sen2_rgb(rgbfiles, enhance=True):
         if data.shape[0] > 3:
             # histogram stretching and keeping the values in
             #   the RGB data array as 8 bit unsigned integers
-            rgbdata[i, :, :] = np.uint8(stretch(data)[0])
+            rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=2)
 
         ds = None
     return rgbdata
