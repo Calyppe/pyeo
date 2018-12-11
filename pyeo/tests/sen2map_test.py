@@ -7,7 +7,7 @@ Created on 6 December 2018
 """
 
 #############################################################################
-# read all Sentinel-2 band geotiffs in a directory and a shape file
+# read all Sentinel-2 scenes in a directory and a shape file
 #   and make RGB quicklook maps at different scales
 # written for Python 3.6.4
 #############################################################################
@@ -48,10 +48,10 @@ io.use_plugin('matplotlib')
 # OPTIONS
 #############################################################################
 wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on Linux HPC
-geojsondir = '/scratch/clcr/shared/heiko/aois/' # this is where the  geojson file is located
+shapedir = '/scratch/clcr/shared/heiko/aois/' # this is where the shapefile is
 datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
 mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
-geojsonfile = geojsondir + 'marque_de_com_really_simple.geojson' # geojson file of test area
+shapefile = shapedir + 'Sitios_A_Medir.shp' # shapefile of test area
 bands = [5, 4, 3]  # band selection for RGB
 rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
 
