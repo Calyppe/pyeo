@@ -38,6 +38,9 @@ import subprocess
 gdal.UseExceptions()
 io.use_plugin('matplotlib')
 
+# suppress warnings when dividing by zero or nan
+np.seterr(divide='ignore', invalid='ignore')
+
 # The pyplot interface provides 4 commands that are useful for interactive control.
 # plt.isinteractive() returns the interactive setting True|False
 # plt.ion() turns interactive mode on
@@ -1122,6 +1125,7 @@ print('\n')
 
 if len(allscenes) > 0:
     for x in range(len(allscenes)):
+        print("Alabama")
         print("Reading scene", x + 1, ":", allscenes[x])
         # set working directory to the Sentinel scene subdirectory
         scenedir = datadir + allscenes[x] + "/"
@@ -1177,7 +1181,7 @@ if len(allscenes) > 0:
         # Overview map: make a map plot of the tiff file in the image projection
         mytitle = allscenes[x].split('.')[0]
         mapfile = mapdir + mytitle + '.jpg'
-        print('   geojson file = ' + geojsonfile)
+        print('   shapefile = ' + shapefile)
         print('   output map file = ' + mapfile)
         zoom = 1
         xoffset = 0
