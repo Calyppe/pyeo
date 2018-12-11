@@ -1186,8 +1186,9 @@ if len(allscenes) > 0:
         zoom = 1
         xoffset = 0
         yoffset = 0
-        map_it(rgbdata, imgproj=projection, imgextent=extent, geojsonfile=geojsonfile, mapfile=mapfile,
-               maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
+        map_it(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile,
+               mapfile=mapfile, maptitle=mytitle,
+               zoom=zoom, xoffset=xoffset, yoffset=yoffset)
 
 '''
 # Zoom out, i.e. zoom factor greater than 1
