@@ -59,7 +59,7 @@ wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on L
 shapedir = '/scratch/clcr/shared/heiko/aois/' # this is where the shapefile is
 datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
 mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
-shapefile = shapedir + 'Sitios_A_Medir.shp' # shapefile of test area
+shapefile = shapedir + 'costa.shp' # shapefile of test area
 bands = [5, 4, 3]  # band selection for RGB
 rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
 
