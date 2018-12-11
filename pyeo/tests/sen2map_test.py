@@ -1119,12 +1119,11 @@ print('\n')
 
 if len(allscenes) > 0:
     for x in range(len(allscenes)):
-        print("Alabama")
+        print("Bolivia")
         print("Reading scene", x + 1, ":", allscenes[x])
-        # set working directory to the Sentinel scene subdirectory
         scenedir = datadir + allscenes[x] + "/"
-        os.chdir(scenedir)
-        # to get the spatial footprint of the scene from the metadatafile:
+        os.chdir(scenedir) # set working directory to the Sentinel scene subdirectory
+        # to get the spatial footprint of the scene from the metadata file:
         # get the list of filenames ending in .xml, but exclude 'INSPIRE.xml'
         xmlfiles = [f for f in os.listdir(scenedir) if f.endswith('.xml') & (1 - f.startswith('INSPIRE'))]
         # print('Reading footprint from ' + xmlfiles[0])
@@ -1148,7 +1147,8 @@ if len(allscenes) > 0:
                 sbands.remove(band)  # only keep 3 bands for display
             else:
                 print(band)
-        print('\n')
+        print(sbands)
+
         nbands = len(sbands)
         for i, iband in enumerate(sbands):
             bandx = gdal.Open(iband, gdal.GA_Update) # open a band
