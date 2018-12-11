@@ -1109,6 +1109,7 @@ if not os.path.exists(mapdir):
 # get Sentinel L2A scene list from data directory
 allscenes = [f for f in listdir(datadir) if isdir(join(datadir, f))]
 allscenes = sorted(allscenes)
+print('\nSentinel-2 directory: ' + datadir)
 print('\nList of Sentinel-2 scenes:')
 for scene in allscenes:
     if not(scene.endswith('.SAFE')):
@@ -1120,8 +1121,8 @@ print('\n')
 if len(allscenes) > 0:
     for x in range(len(allscenes)):
         print("Bolivia")
-        print("Reading scene", x + 1, ":", allscenes[x])
         scenedir = datadir + allscenes[x] + "/"
+        print("Reading scene", x + 1, ":", scenedir)
         os.chdir(scenedir) # set working directory to the Sentinel scene subdirectory
         # to get the spatial footprint of the scene from the metadata file:
         # get the list of filenames ending in .xml, but exclude 'INSPIRE.xml'
@@ -1142,16 +1143,24 @@ if len(allscenes) > 0:
         imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA/R10m/"
         os.chdir(imgdir) # go to the image data subdirectory
         sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
-        for b, band in enumerate(sbands):
-            if not ((band.endswith(bands[0]+'.SAFE')) or (band.endswith(bands[1]+'.SAFE')) or (band.endswith(bands[2]+'.SAFE'))):
-                sbands.remove(band)  # only keep 3 bands for display
-        print('Band files for map making:')
+        print('Bands in granule directory: ')
         for band in sbands:
             print(band)
-        nbands = len(sbands)
-        for i, iband in enumerate(sbands):
+        print('Retain bands with file name pattern matching:')
+        for band in bands:
+            print(band)
+        rgbbands = []
+        for band in bands:
+            print([x for x in sbands if band in x])
+            rgbbands.append(band)
+        print('Band files for map making:')
+        for band in rgbbands:
+            print(band)
+        nbands = len(rgbbands)
+        for i, iband in enumerate(rgbbands):
             bandx = gdal.Open(iband, gdal.GA_Update) # open a band
             data = bandx.ReadAsArray()
+            print(data.shape)
             if i == 0:
                 ncols = bandx.RasterXSize
                 nrows = bandx.RasterYSize
@@ -1166,7 +1175,7 @@ if len(allscenes) > 0:
                 projcs = inproj.GetAuthorityCode('PROJCS')
                 projection = ccrs.epsg(projcs)
                 extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
-                rgbdata = np.zeros([len(sbands), data.shape[0], data.shape[1]],
+                rgbdata = np.zeros([nbands, data.shape[0], data.shape[1]],
                                dtype=np.uint8)  # recepticle for stretched RGB pixel values
             rgbdata[i, :, :] = data
             bandx = None # close GDAL file
