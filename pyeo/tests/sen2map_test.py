@@ -60,7 +60,7 @@ shapedir = '/scratch/clcr/shared/heiko/aois/' # this is where the shapefile is
 datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
 mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
 shapefile = shapedir + 'marque.shp' # shapefile of test area
-bands = [5, 4, 3]  # band selection for RGB
+bands = ['B04_10m','B03_10m','B02_10m'] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
 rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
 
 #############################################################################
@@ -566,7 +566,7 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     # rotate x axis labels
     ax1.tick_params(axis='x', labelrotation=90)
 
-    # show the data from the geotiff RGB image
+    # show the data from the RGB image
     img = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
                      extent=imgextent, origin='upper', zorder=1)
 
@@ -1104,8 +1104,6 @@ def geotif2maps(tiffroot, shapefile, plotdir, bands=[5,4,3], id='map', zoom=1, x
 #############################################################################
 # MAIN
 #############################################################################
-
-bands = ['B04_10m', 'B03_10m', 'B02_10m'] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
 
 # go to working directory
 os.chdir(wd)
