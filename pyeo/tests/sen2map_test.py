@@ -44,6 +44,7 @@ io.use_plugin('matplotlib')
 # plt.ioff() turns interactive mode off
 # plt.draw() forces a figure redraw
 
+
 #############################################################################
 # OPTIONS
 #############################################################################
