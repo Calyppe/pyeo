@@ -645,14 +645,6 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
                              edgecolor='white', facecolor='white', zorder=3)
     ax1.add_patch(rect)
 
-    # draws boxes on the map (not used anymore)
-    #rect = patches.Rectangle((x0, y0), x1 - x0, (y1 - y0) * 0.1, linewidth=1,
-    #                         edgecolor='purple', facecolor="None", zorder=9)
-    #ax1.add_patch(rect)
-    #rect = patches.Rectangle((x0, y0 + (y1 - y0) * 0.1), x1 - x0, y1 - y0, linewidth=1,
-    #                         edgecolor='purple', facecolor="None", zorder=9)
-    #ax1.add_patch(rect)
-
     # ---------------------------------Overview Location Map ------------------------
     # define where it should go, i.e. bottom left of the figure area
     left = 0.03
@@ -772,7 +764,6 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     fig.show()
 
     # save it to a file
-    # plotfile = plotdir + allscenes[x].split('.')[0] + '_map1.jpg'
     fig.savefig(mapfile)
     plt.close(fig)
 
