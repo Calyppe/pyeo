@@ -447,14 +447,14 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     mapextent = extent of the map to be plotted in map coordinates
     shpproj = map projection of the shapefile
 
+    '''
+
     # work out the map extent based on the image extent plus a margin
     width = (imgextent[1] - imgextent[0]) * zoom  # work out the width and height of the zoom image
     height = (imgextent[3] - imgextent[2]) * zoom
     cx = (imgextent[0] + imgextent[1]) / 2 + xoffset  # calculate centre point positions
     cy = (imgextent[2] + imgextent[3]) / 2 + yoffset
     mapextent = (cx - width / 2, cx + width / 2, cy - height / 2, cy + height / 2)  # create a new tuple 'mapextent'
-
-    '''
 
     # get shapefile projection from the file
     # get driver to read a shapefile and open it
