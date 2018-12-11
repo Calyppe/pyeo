@@ -47,6 +47,7 @@ io.use_plugin('matplotlib')
 #############################################################################
 # OPTIONS
 #############################################################################
+copyright = '© University of Leicester, 2018. ' #text to be plotted on the map
 wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on Linux HPC
 shapedir = '/scratch/clcr/shared/heiko/aois/' # this is where the shapefile is
 datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
@@ -504,7 +505,7 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     ax3.spines['left'].set_visible(False)
 
     # add copyright statement and production date in the bottom left corner
-    ax3.text(0.03, 0.03, '© University of Leicester, 2018. ' +
+    ax3.text(0.03, 0.03, copyright +
              'Map generated at ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
              fontsize=9)
 
