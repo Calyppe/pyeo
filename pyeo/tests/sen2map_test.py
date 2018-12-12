@@ -287,7 +287,7 @@ def histogram(a, bins=range(0, 256)):
     return hist
 
 
-def stretch(im, nbins=256, p=2, nozero=True):
+def stretch(im, nbins=256, p=None, nozero=True):
     """
     Performs a histogram stretch on an ndarray image.
     im = image
@@ -302,11 +302,14 @@ def stretch(im, nbins=256, p=2, nozero=True):
         im2 = im[np.not_equal(im, 0)]
     else:
         im2 = im
+
     # remove extreme values
-    max = np.percentile(im2.flatten(), 100-p)
-    min = np.percentile(im2.flatten(), p)
-    im2[np.where(im2 > max)] = max
-    im2[np.where(im2 < min)] = min
+    if p:
+        max = np.percentile(im2.flatten(), 100-p)
+        min = np.percentile(im2.flatten(), p)
+        im2[np.where(im2 > max)] = max
+        im2[np.where(im2 < min)] = min
+
     # get image histogram
     image_histogram, bins = np.histogram(im2.flatten(), bins=nbins, density=True)
     cdf = image_histogram.cumsum()  # cumulative distribution function
@@ -847,9 +850,10 @@ if len(allscenes) > 0:
             print("Error: Number of bands must be 3 for RGB.")
             break
         for i, iband in enumerate(rgbbands):
-            print("Reading data from band: " + iband[0])
+            print("Reading data from band " + str(i) + ": " + iband[0])
             bandx = gdal.Open(iband[0], gdal.GA_Update) # open a band
             data = bandx.ReadAsArray()
+            print("Band data shape: ")
             print(data.shape)
             if i == 0:
                 ncols = bandx.RasterXSize
@@ -867,9 +871,11 @@ if len(allscenes) > 0:
                 extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
                 rgbdata = np.zeros([nbands, data.shape[0], data.shape[1]],
                                dtype=np.uint8)  # recepticle for stretched RGB pixel values
-            rgbdata[i, :, :] = data
+            p=2
+            print("Histogram stretching of band " + str(i) + " using p=" + str(p))
+            rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to 8 bit unsigned integers
             bandx = None # close GDAL file
-        rgbdata[:,:,:] = np.uint8(stretch(rgbdata)[0]) # histogram stretching and converting to 8 bit unsigned integers
+        #rgbdata[:,:,:] = np.uint8(stretch(rgbdata)[0]) # histogram stretching and converting to 8 bit unsigned integers
 
         # plot the image as RGB on a cartographic map
         # Overview map: make a map plot of the tiff file in the image projection
