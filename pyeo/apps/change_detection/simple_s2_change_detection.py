@@ -29,6 +29,7 @@ if __name__ == "__main__":
                         help="Path to the .ini file specifying the job.")
     parser.add_argument('-d', '--download', dest='do_download', action='store_true', default=False)
     parser.add_argument('-p', '--preprocess', dest='do_preprocess', action='store_true',  default=False)
+    parser.add_argument('-M', '--Map', dest='do_map', action='store_true', default=False)
     parser.add_argument('-m', '--merge', dest='do_merge', action='store_true', default=False)
     parser.add_argument('-s', '--stack', dest='do_stack', action='store_true', default=False)
     parser.add_argument('-o', '--mosaic', dest='do_mosaic', action='store_true', default=False)
@@ -58,6 +59,7 @@ if __name__ == "__main__":
 
     l1_image_path = os.path.join(project_root, r"images/L1")
     l2_image_path = os.path.join(project_root, r"images/L2")
+    l2_map_path = os.path.join(project_root, r"images/maps")
     planet_image_path = os.path.join(project_root, r"images/planet")
     merged_image_path = os.path.join(project_root, r"images/merged")
     stacked_image_path = os.path.join(project_root, r"images/stacked")
@@ -75,6 +77,22 @@ if __name__ == "__main__":
     if args.do_preprocess or do_all:
         log.info("Applying sen2cor")
         pyeo.atmospheric_correction(l1_image_path, l2_image_path, sen2cor_path, delete_unprocessed_image=False)
+
+    # Map making from L2A images
+    if args.do_map or do_all:
+        log.info("Making maps from L2A images")
+        n = l2_mapping(l2_image_path, id="Overview", p=2, figsizex=16, figsizey=12, zoom=1, xoffset=0,
+                           yoffset=0)  # overview map
+        log.info("Made " + str(n) + " overview maps.")
+        n = l2_mapping(l2_image_path, id="ZoomOut", p=2, figsizex=12, figsizey=12, zoom=2, xoffset=0,
+                           yoffset=0)  # zoom out
+        log.info("Made " + str(n) + " zoomed out maps.")
+        n = l2_mapping(l2_image_path, id="ZoomIn", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
+                           yoffset=0)  # zoom in
+        log.info("Made " + str(n) + " zoomed in maps.")
+        n = l2_mapping(l2_image_path, id="MoveLeft", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
+                           yoffset=-2500)  # move left
+        log.info("Made " + str(n) + " maps moved to the left.")
 
     # Merging / Aggregating layers into single image
     if args.do_merge or do_all:
