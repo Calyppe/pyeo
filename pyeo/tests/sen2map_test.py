@@ -16,12 +16,11 @@ Created on 6 December 2018
 #   %matplotlib
 
 from cartopy.io.shapereader import Reader
-from cartopy.feature import ShapelyFeature, BORDERS
+from cartopy.feature import ShapelyFeature
 import cartopy
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import datetime
-import json
 import matplotlib.image as im
 import matplotlib.lines as mlines
 import matplotlib.patches as patches
@@ -33,23 +32,15 @@ from os import listdir
 from os.path import isfile, isdir, join
 from osgeo import gdal, gdalnumeric, ogr, osr
 from skimage import io
-import subprocess
 
 gdal.UseExceptions()
 io.use_plugin('matplotlib')
-
-# suppress warnings when dividing by zero or nan
-np.seterr(divide='ignore', invalid='ignore')
-
-# suppress matplotlib depracation warning
-#warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
 
 # The pyplot interface provides 4 commands that are useful for interactive control.
 # plt.isinteractive() returns the interactive setting True|False
 # plt.ion() turns interactive mode on
 # plt.ioff() turns interactive mode off
 # plt.draw() forces a figure redraw
-
 
 #############################################################################
 # OPTIONS
@@ -85,18 +76,6 @@ def blank_axes(ax):
     ax.xaxis.set_ticks_position('none')
     ax.tick_params(labelbottom='off', labeltop='off', labelleft='off', labelright='off', \
                    bottom='off', top='off', left='off', right='off')
-
-# define functions to read/write floating point numbers from/to a text file
-def read_floats(filename):
-    with open(filename) as f:
-        return [float(x) for x in f]
-    f.close()
-
-def write_floats(data, filename):
-    file = open(filename, 'w')
-    for item in data:
-        file.write("%f\n" % item)
-    file.close()
 
 def get_gridlines(x0, x1, y0, y1, nticks):
     '''
@@ -142,151 +121,6 @@ def get_gridlines(x0, x1, y0, y1, nticks):
 
     return xticks, yticks
 
-# function to convert coordinates
-def convertXY(xy_source, inproj, outproj):
-    shape = xy_source[0, :, :].shape
-    size = xy_source[0, :, :].size
-    # the ct object takes and returns pairs of x,y, not 2d grids
-    # so the the grid needs to be reshaped (flattened) and back.
-    ct = osr.CoordinateTransformation(inproj, outproj)
-    xy_target = np.array(ct.TransformPoints(xy_source.reshape(2, size).T))
-    xx = xy_target[:, 0].reshape(shape)
-    yy = xy_target[:, 1].reshape(shape)
-    return xx, yy
-
-
-# This function will convert the rasterized clipper shapefile to a mask for use within GDAL.
-def imageToArray(i):
-    """
-    Converts a Python Imaging Library array to a
-    gdalnumeric image.
-    """
-    a = gdalnumeric.fromstring(i.tostring(), 'b')
-    a.shape = i.im.size[1], i.im.size[0]
-    return a
-
-
-def world2Pixel(geoMatrix, x, y):
-    """
-    Uses a gdal geomatrix (gdal.GetGeoTransform()) to calculate
-    the pixel location of a geospatial coordinate
-    """
-    ulX = geoMatrix[0]
-    ulY = geoMatrix[3]
-    xDist = geoMatrix[1]
-    yDist = geoMatrix[5]
-    rtnX = geoMatrix[2]
-    rtnY = geoMatrix[4]
-    pixel = int((x - ulX) / xDist)
-    line = int((ulY - y) / xDist)
-    return (pixel, line)
-
-
-def transformxy(s_srs, t_srs, xcoord, ycoord):
-    """
-    Transforms a point coordinate x,y from a source reference system (s_srs)
-    to a target reference system (t_srs)
-    """
-    geom = ogr.Geometry(ogr.wkbPoint)
-    geom.SetPoint_2D(0, xcoord, ycoord)
-    geom.AssignSpatialReference(s_srs)
-    geom.TransformTo(t_srs)
-    return geom.GetPoint_2D()
-
-
-def projectshape(inshp, outshp, t_srs):
-    """
-    Reprojects an ESRI shapefile from its source reference system
-    to a target reference system (e.g. t_srs = 4326)
-    filenames must include the full directory paths
-    requires:
-        from osgeo import ogr, osr
-        import os
-    """
-
-    driver = ogr.GetDriverByName('ESRI Shapefile')  # get shapefile driver
-    infile = driver.Open(inshp, 0)
-    if infile is None:
-        print('Could not open ' + inshp)
-        sys.exit(1)  # exit with an error code
-    inLayer = infile.GetLayer()  # get input layer
-    inSpatialRef = inLayer.GetSpatialRef()  # get source spatial reference system
-    # or input SpatialReference manually here
-    #   inSpatialRef = osr.SpatialReference()
-    #   inSpatialRef.ImportFromEPSG(2927)
-    outSpatialRef = osr.SpatialReference()
-    outSpatialRef.ImportFromEPSG(t_srs)
-    # create the CoordinateTransformation
-    coordTrans = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
-    # create the output layer
-    if os.path.exists(outshp):
-        driver.DeleteDataSource(outshp)
-    outDataSet = driver.CreateDataSource(outshp)
-    outLayer = outDataSet.CreateLayer("basemap_" + str(t_srs), geom_type=ogr.wkbMultiPolygon)
-    # add fields
-    inLayerDefn = inLayer.GetLayerDefn()
-    for i in range(0, inLayerDefn.GetFieldCount()):
-        fieldDefn = inLayerDefn.GetFieldDefn(i)
-        outLayer.CreateField(fieldDefn)
-    # get the output layer's feature definition
-    outLayerDefn = outLayer.GetLayerDefn()
-    # loop through the input features
-    inFeature = inLayer.GetNextFeature()
-    while inFeature:
-        # get the input geometry
-        geom = inFeature.GetGeometryRef()
-        # reproject the geometry
-        geom.Transform(coordTrans)
-        # create a new feature
-        outFeature = ogr.Feature(outLayerDefn)
-        # set the geometry and attribute
-        outFeature.SetGeometry(geom)
-        for i in range(0, outLayerDefn.GetFieldCount()):
-            outFeature.SetField(outLayerDefn.GetFieldDefn(i).GetNameRef(), inFeature.GetField(i))
-        # add the feature to the shapefile
-        outLayer.CreateFeature(outFeature)
-        # dereference the features and get the next input feature
-        outFeature = None
-        inFeature = inLayer.GetNextFeature()
-    # Save and close the shapefiles
-    inDataSet = None
-    outDataSet = None
-    # Try to open the output file to check it worked
-    outfile = driver.Open(outshp, 0)
-    if outfile is None:
-        print('Failed to create ' + outshp)
-        sys.exit(1)  # exit with an error code
-    else:
-        print('Reprojection of shapefile seems to have worked.')
-    return None
-
-
-def OpenArray(array, prototype_ds=None, xoff=0, yoff=0):
-    #  this is basically an overloaded version of the gdal_array.OpenArray passing in xoff, yoff explicitly
-    #  so we can pass these params off to CopyDatasetInfo
-    ds = gdal.Open(gdalnumeric.GetArrayFilename(array))
-
-    if ds is not None and prototype_ds is not None:
-        if type(prototype_ds).__name__ == 'str':
-            prototype_ds = gdal.Open(prototype_ds)
-        if prototype_ds is not None:
-            gdalnumeric.CopyDatasetInfo(prototype_ds, ds, xoff=xoff, yoff=yoff)
-    return ds
-
-
-def histogram(a, bins=range(0, 256)):
-    """
-    Histogram function for multi-dimensional array.
-    a = array
-    bins = range of numbers to match
-    """
-    fa = a.flat
-    n = gdalnumeric.searchsorted(gdalnumeric.sort(fa), bins)
-    n = gdalnumeric.concatenate([n, [len(fa)]])
-    hist = n[1:] - n[:-1]
-    return hist
-
-
 def stretch(im, nbins=256, p=None, nozero=True):
     """
     Performs a histogram stretch on an ndarray image.
@@ -317,123 +151,6 @@ def stretch(im, nbins=256, p=None, nozero=True):
     # use linear interpolation of cdf to find new pixel values
     image_equalized = np.interp(im.flatten(), bins[:-1], cdf)
     return image_equalized.reshape(im.shape), cdf
-
-
-def read_sen2_rgb(rgbfiles, enhance=True):
-    '''
-    reads in 3 separate geotiff files as R G and B channels
-    rgbfiles: list of three filenames including directory structure
-    enhance = True: applies histogram stretching (optional)
-    returns a data frame scaled to unsigned 8 bit integer values
-    '''
-    # make array of 8-bit unsigned integers to be memory efficient
-    # open the first file with GDAL to get dimensions
-    ds = gdal.Open(rgbfiles[0])
-    data = ds.ReadAsArray()
-    rgbdata = np.zeros([len(bands), data.shape[0], data.shape[1]], dtype=np.uint8)
-
-    for i, thisfile in enumerate(rgbfiles):
-        print('Reading data from ' + thisfile)
-
-        # open the file with GDAL
-        ds = gdal.Open(thisfile)
-        data = ds.ReadAsArray()
-
-        # only process single-band files, these have not got 3 bands
-        if data.shape[0] > 3:
-            # histogram stretching and keeping the values in
-            #   the RGB data array as 8 bit unsigned integers
-            rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=2)
-
-        ds = None
-    return rgbdata
-
-
-def draw_scale_bar(ax, tifproj, bars=4, length=None, location=(0.1, 0.8), linewidth=5, col='black', zorder=20):
-    """
-    Plot a nice scale bar with 4 subdivisions on an axis linked to the map scale.
-
-    ax is the axes to draw the scalebar on.
-    tifproj is the map projection
-    bars is the number of subdivisions of the bar (black and white chunks)
-    length is the length of the scalebar in km.
-    location is left side of the scalebar in axis coordinates.
-    (ie. 0 is the left side of the plot)
-    linewidth is the thickness of the scalebar.
-    color is the color of the scale bar and the text
-
-    modified from
-    https://stackoverflow.com/questions/32333870/how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot/35705477#35705477
-
-    """
-    # Get the limits of the axis in map coordinates
-    x0, x1, y0, y1 = ax.get_extent(tifproj)
-
-    # Set the relative position of the scale bar
-    sbllx = x0 + (x1 - x0) * location[0]
-    sblly = y0 + (y1 - y0) * location[1]
-
-    # Turn the specified relative scalebar location into coordinates in metres
-    sbx = x0 + (x1 - x0) * location[0]
-    sby = y0 + (y1 - y0) * location[1]
-
-    # Get the thickness of the scalebar
-    thickness = (y1 - y0) / 20
-
-    # Calculate a scale bar length if none has been given
-    if not length:
-        length = (x1 - x0) / 1000 / bars  # in km
-        ndim = int(np.floor(np.log10(length)))  # number of digits in number
-        length = round(length, -ndim)  # round to 1sf
-
-        # Returns numbers starting with the list
-        def scale_number(x):
-            if str(x)[0] in ['1', '2', '5']:
-                return int(x)
-            else:
-                return scale_number(x - 10 ** ndim)
-
-        length = scale_number(length)
-
-    # Generate the x coordinate for the ends of the scalebar
-    bar_xs = [sbx, sbx + length * 1000 / bars]
-
-    # Generate the y coordinate for the ends of the scalebar
-    bar_ys = [sby, sby + thickness]
-
-    # Plot the scalebar chunks
-    barcol = 'white'
-    for i in range(0, bars):
-        # plot the chunk
-        rect = patches.Rectangle((bar_xs[0], bar_ys[0]), bar_xs[1] - bar_xs[0], bar_ys[1] - bar_ys[0],
-                                 linewidth=1, edgecolor='black', facecolor=barcol)
-        ax.add_patch(rect)
-
-        #        ax.plot(bar_xs, bar_ys, transform=tifproj, color=barcol, linewidth=linewidth, zorder=zorder)
-
-        # alternate the colour
-        if barcol == 'white':
-            barcol = col
-        else:
-            barcol = 'white'
-        # Generate the x,y coordinates for the number
-        bar_xt = sbx + i * length * 1000 / bars
-        bar_yt = sby + thickness
-
-        # Plot the scalebar label for that chunk
-        ax.text(bar_xt, bar_yt, str(round(i * length / bars)), transform=tifproj,
-                horizontalalignment='center', verticalalignment='bottom',
-                color=col, zorder=zorder)
-        # work out the position of the next chunk of the bar
-        bar_xs[0] = bar_xs[1]
-        bar_xs[1] = bar_xs[1] + length * 1000 / bars
-    # Generate the x coordinate for the last number
-    bar_xt = sbx + length * 1000
-    # Plot the last scalebar label
-    t = ax.text(bar_xt, bar_yt, str(round(length)) + ' km', transform=tifproj,
-                horizontalalignment='center', verticalalignment='bottom',
-                color=col, zorder=zorder)
-
 
 def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
            maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
