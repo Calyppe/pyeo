@@ -1787,7 +1787,6 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
 
     if rgbdata.shape[0] == 3:
         # show RGB image if 3 colour channels are present
-        rgbdata[0,:,:] rgbdata[2,:,:]
         temp = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
                           extent=imgextent, origin='upper', zorder=1)
     else:
