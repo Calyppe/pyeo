@@ -2006,7 +2006,7 @@ def map_L2A_scene(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     fig.savefig(mapfile)
     plt.close(fig)
 
-def map_all_scenes(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to process the map_L2A_scene routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
