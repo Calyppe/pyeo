@@ -1753,7 +1753,7 @@ def map_L2A_scene(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='ma
 
     # add copyright statement and production date in the bottom left corner
     ax3.text(0.03, 0.03, copyright +
-             'Map generated at ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+             'Map generated at ' + dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
              fontsize=9)
 
     # ---------------------- Main map ----------------------
