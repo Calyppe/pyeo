@@ -2020,7 +2020,7 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     plt.close(fig)
 
 
-def l2_mapping(datadir, id="map", bands, p=None, rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def l2_mapping(datadir, bands, id="map", p=None, rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
@@ -2110,11 +2110,13 @@ def l2_mapping(datadir, id="map", bands, p=None, rosepath=None, copyright=None, 
                     pixelHeight = geotrans[5]  # (negative) pixel spacing in y
                     projcs = inproj.GetAuthorityCode('PROJCS')
                     projection = ccrs.epsg(projcs)
-                    extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
+                    extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] +
+                              nrows * geotrans[5], geotrans[3])
                     rgbdata = np.zeros([nbands, data.shape[0], data.shape[1]],
                                    dtype=np.uint8)  # recepticle for stretched RGB pixel values
                 print("Histogram stretching of band " + str(i) + " using p=" + str(p))
-                rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to 8 bit unsigned integers
+                rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to
+                    # 8 bit unsigned integers
                 bandx = None # close GDAL file
 
             # plot the image as RGB on a cartographic map
@@ -2123,12 +2125,14 @@ def l2_mapping(datadir, id="map", bands, p=None, rosepath=None, copyright=None, 
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
             map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
-                      mapfile=mapfile, maptitle=mytitle, rosepath=rosepath, copyright=copyright, figsizex=figsizex, figsizey=figsizey,
+                      mapfile=mapfile, maptitle=mytitle, rosepath=rosepath, copyright=copyright,
+                      figsizex=figsizex, figsizey=figsizey,
                       zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
 
-def map_all_class_images(classdir, id="map", cols=None, rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def map_all_class_images(classdir, id="map", cols=None, rosepath=None, copyright=None, figsizex=8, figsizey=8,
+                         zoom=1, xoffset=0, yoffset=0):
     '''
     function to make a map for each class image in the class directory
     classdir = directory in which all classified images are stored (8-bit)
