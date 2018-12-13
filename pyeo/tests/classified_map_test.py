@@ -154,18 +154,21 @@ def stretch(im, nbins=256, p=None, nozero=True):
     image_equalized = np.interp(im.flatten(), bins[:-1], cdf)
     return image_equalized.reshape(im.shape), cdf
 
-def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
+def map_it(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
            maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     New map_L2A_scene function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
 
-    rgbdata = numpy array of the red, green and blue channels, made by read_sen2rgb
+    rgbdata = numpy array with the image data. Options:
+        3 channels containing red, green and blue channels will be displayed as a colour image
+        1 channel containing class values will be displayed using a colour table
     imgproj = map projection of the tiff files from which the rgbdata originate
     imgextent = extent of the satellite image in map coordinates
     shapefile = shapefile name to be plotted on top of the map
-    plotfile = output filename for the map plot
-    plottitle = text to be written above the map
+    cols = colour table for display of class image (optional)
+    mapfile = output filename for the map plot
+    maptitle = text to be written above the map
     figsizex = width of the figure in inches
     figsizey = height of the figure in inches
     zoom = zoom factor
@@ -288,9 +291,30 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     # rotate x axis labels
     ax1.tick_params(axis='x', labelrotation=90)
 
-    # show the data from the RGB image
-    img = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
-                     extent=imgextent, origin='upper', zorder=1)
+    if rgbdata.shape[0] == 3:
+        # show RGB image if 3 colour channels are present
+        temp = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
+                         extent=imgextent, origin='upper', zorder=1)
+    else:
+        if rgbdata.shape[0] == 1:
+            # show classified image with look-up colour table if only one channel is present
+            if cols==None:
+                cols = {
+                    0: [0,0,0],
+                    1: [76,153,0],
+                    2: [204,204,0],
+                    3: [255,255,0],
+                    4: [102,51,0],
+                    5: [153,76,0],
+                    6: [51,255,51],
+                    7: [0,102,102],
+                    8: [204,155,153],
+                    9: [204,102,0],
+                    10: [0,128,255]}
+            temp = ax1.imshow(rgbdata[:, :]), extent=imgextent, origin='upper', zorder=1)
+        else:
+            print("Image data must contain 1 or 3 channels.")
+            break
 
     #  read shapefile and plot it onto the tiff image map
     shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
@@ -605,11 +629,12 @@ def map_all_scenes(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xo
             counter = counter + 1
     return counter
 
-def map_all_class_images(classdir, id="map", figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def map_all_class_images(classdir, id="map", cols=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to process the map_L2A_scene routine for all JPEG files in the Sentinel-2 L2A directory
     classdir = directory in which all classified images are stored (8-bit)
     id = text identifying the mapping run, e.g. "Matalascanas"
+    cols = colour table (optional)
     figsizex, figsizey = figure size in inches
     zoom = zoom factor
     xoffset = offset in x direction in pixels
@@ -632,52 +657,30 @@ def map_all_class_images(classdir, id="map", figsizex=8, figsizey=8, zoom=1, xof
             print("Dusseldorf")
             print("Reading scene", x + 1, ":", allscenes[x])
             # get the spatial extent from the geotiff file
-
-
-
-            footprint =
-
-            classimg = gdal.Open(classdir+allscenes[x], gdal.GA_Update)
+            classimg = gdal.Open(classdir+allscenes[x], gdal.GA_ReadOnly)
             data = classimg.ReadAsArray()
             print("Image data shape: ")
             print(data.shape)
-            ncols = classimg.RasterXSize
-            nrows = classimg.RasterYSize
             geotrans = classimg.GetGeoTransform()
-            proj = classimg.GetProjection()
-            inproj = osr.SpatialReference()
-            inproj.ImportFromWkt(proj)
             ulx = geotrans[0]  # Upper Left corner coordinate in x
             uly = geotrans[3]  # Upper Left corner coordinate in y
             pixelWidth = geotrans[1]  # pixel spacing in map units in x
             pixelHeight = geotrans[5]  # (negative) pixel spacing in y
+            ncols = classimg.RasterXSize
+            nrows = classimg.RasterYSize
+            proj = classimg.GetProjection()
+            inproj = osr.SpatialReference()
+            inproj.ImportFromWkt(proj)
             projcs = inproj.GetAuthorityCode('PROJCS')
             projection = ccrs.epsg(projcs)
             extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
             classimg = None # close GDAL file
-
-            # map [R,G,B] colour table onto classified image and turn into RGB three-band image for mapping function
-            cols = {
-                0: [0,0,0],
-                1: [76,153,0],
-                2: [204,204,0],
-                3: [255,255,0],
-                4: [102,51,0],
-                5: [153,76,0],
-                6: [51,255,51],
-                7: [0,102,102],
-                8: [204,155,153],
-                9: [204,102,0],
-                10: [0,128,255]}
-
-            img = np.array([[cols[val] for val in row] for row in data], dtype=np.uint8) # ='B')
-
-            # plot the image as RGB on a cartographic map
+            rgbdata = np.array([[cols[val] for val in row] for row in data], dtype=np.uint8) # ='B')
             mytitle = allscenes[x].split('.')[0]
             mapfile = mapdir + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
-            map_it(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile,
+            map_it(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
                    mapfile=mapfile, maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
@@ -695,11 +698,11 @@ if not os.path.exists(classmapdir):
     print("Creating directory: ", classmapdir)
     os.mkdir(classmapdir)
 
-n = map_all_class_images(classdir, id="Overview", figsizex=12, figsizey=12, zoom=1, xoffset=0, yoffset=0) # overview map
+n = map_all_class_images(classdir, id="Overview", cols=None, figsizex=12, figsizey=12, zoom=1, xoffset=0, yoffset=0) # overview map
 print("Made "+str(n)+" maps.")
-n = map_all_class_images(classdir, id="ZoomOut", figsizex=12, figsizey=12, zoom=2, xoffset=0, yoffset=0) # zoom out
+n = map_all_class_images(classdir, id="ZoomOut", cols=None, figsizex=12, figsizey=12, zoom=2, xoffset=0, yoffset=0) # zoom out
 print("Made "+str(n)+" maps.")
-n = map_all_class_images(classdir, id="ZoomIn", figsizex=12, figsizey=12, zoom=0.1, xoffset=0, yoffset=0) # zoom in
+n = map_all_class_images(classdir, id="ZoomIn", cols=None, figsizex=12, figsizey=12, zoom=0.1, xoffset=0, yoffset=0) # zoom in
 print("Made "+str(n)+" maps.")
-n = map_all_class_images(classdir, id="MoveLeft", figsizex=12, figsizey=12, zoom=0.1, xoffset=0, yoffset=-2500) # move left
+n = map_all_class_images(classdir, id="MoveLeft", cols=None, figsizex=12, figsizey=12, zoom=0.1, xoffset=0, yoffset=-2500) # move left
 print("Made "+str(n)+" maps.")
