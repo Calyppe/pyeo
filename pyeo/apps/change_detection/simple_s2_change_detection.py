@@ -77,7 +77,7 @@ if __name__ == "__main__":
     probability_image_path = os.path.join(project_root, r"output/probabilities")
 
     # TODO include this in the .ini file
-    shapefile = aoi_path + '/marque.shp'  # shapefile of test area
+    shapefile = aoi_path.split('/')[0] + '/marque.shp'  # shapefile of test area
 
     # Query and download
     if args.do_download or do_all:
