@@ -1298,7 +1298,7 @@ def classify_image(image_path, model_path, class_out_dir, prob_out_dir=None,
     log.info("Classifying file: {}".format(image_path))
     log.info("Saved model     : {}".format(model_path))
     image = gdal.Open(image_path)
-    if num_chunks == None:
+    if num_chunks is None:
         log.info("No chunk size given, attempting autochunk.")
         num_chunks = autochunk(image)
         log.info("Autochunk to {} chunks".format(num_chunks))
@@ -1549,22 +1549,6 @@ def get_local_top_left(raster1, raster2):
     return point_to_pixel_coordinates(raster1, [inner_gt[0], inner_gt[3]])
 
 
-#############################################################################
-# OPTIONS
-#############################################################################
-copyright = '© University of Leicester, 2018. ' #text to be plotted on the map
-wd = '/scratch/clcr/shared/heiko/marque_de_com/images/' # working directory on Linux HPC
-shapedir = '/scratch/clcr/shared/heiko/aois/' # this is where the shapefile is
-datadir = wd + 'L2/'  # directory of Sentinel L2A data files in .SAFE format
-mapdir = wd + 'maps/'  # directory of Sentinel L1C data files in .SAFE format
-shapefile = shapedir + 'marque.shp' # shapefile of test area
-bands = ['B04_10m','B03_10m','B02_10m'] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
-rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
-
-#############################################################################
-# FUNCTION DECLARATIONS
-#############################################################################
-
 def blank_axes(ax):
     """
     blank_axes:  blank the extraneous spines and tick marks for an axes
@@ -1583,6 +1567,7 @@ def blank_axes(ax):
     ax.xaxis.set_ticks_position('none')
     ax.tick_params(labelbottom='off', labeltop='off', labelleft='off', labelright='off', \
                    bottom='off', top='off', left='off', right='off')
+
 
 def get_gridlines(x0, x1, y0, y1, nticks):
     '''
@@ -1628,6 +1613,7 @@ def get_gridlines(x0, x1, y0, y1, nticks):
 
     return xticks, yticks
 
+
 def stretch(im, nbins=256, p=None, nozero=True):
     """
     Performs a histogram stretch on an ndarray image.
@@ -1659,8 +1645,9 @@ def stretch(im, nbins=256, p=None, nozero=True):
     image_equalized = np.interp(im.flatten(), bins[:-1], cdf)
     return image_equalized.reshape(im.shape), cdf
 
+
 def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
-              maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+              maptitle='', rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     New map_image function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
@@ -1674,6 +1661,7 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     cols = colour table for display of class image (optional)
     mapfile = output filename for the map plot
     maptitle = text to be written above the map
+    rosepath = directory pointing to the compass rose image file (optional)
     figsizex = width of the figure in inches
     figsizey = height of the figure in inches
     zoom = zoom factor
@@ -1717,7 +1705,7 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     projosr.ImportFromWkt(projwkt)
     # print(projosr)
     projcs = projosr.GetAuthorityCode('PROJCS')
-    if projcs == None:
+    if projcs is None:
         print(
             "No EPSG code found in shapefile. Using EPSG 4326 instead. Make sure the .prj file contains AUTHORITY={CODE}.")
         projcs = 4326  # if no EPSG code given, set to geojson default
@@ -1751,10 +1739,10 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     ax3.spines['bottom'].set_visible(False)
     ax3.spines['left'].set_visible(False)
 
-    # add copyright statement and production date in the bottom left corner
-    ax3.text(0.03, 0.03, copyright +
-             'Map generated at ' + dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-             fontsize=9)
+    if copyright is not None:
+        # add copyright statement and production date in the bottom left corner
+        ax3.text(0.03, 0.03, copyright +
+                 'Made: ' + dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fontsize=9)
 
     # ---------------------- Main map ----------------------
     # set up main map almost full height (allow room for title), to the right of the figure
@@ -1799,12 +1787,13 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
 
     if rgbdata.shape[0] == 3:
         # show RGB image if 3 colour channels are present
+        rgbdata[0,:,:] rgbdata[2,:,:]
         temp = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
                           extent=imgextent, origin='upper', zorder=1)
     else:
         if rgbdata.shape[0] == 1:
             # show classified image with look-up colour table if only one channel is present
-            if cols == None:
+            if cols is None:
                 cols = {
                     0: [0, 0, 0],
                     1: [76, 153, 0],
@@ -1972,13 +1961,13 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     rect = [left, bottom, width, height]
     ax4 = plt.axes(rect)
 
-    # add a graphics file with a North Arrow
-    compassrose = im.imread(rosepath + 'compassrose.jpg')
-    img = ax4.imshow(compassrose, zorder=4)  # origin='upper'
-
-    # need a font that support enough Unicode to draw up arrow. need space after Unicode to allow wide char to be drawm?
-    # ax4.text(0.5, 0.0, r'$\uparrow N$', ha='center', fontsize=30, family='sans-serif', rotation=0)
-    blank_axes(ax4)
+    if rosepath != None:
+        # add a graphics file with a North Arrow
+        compassrose = im.imread(rosepath + 'compassrose.jpg')
+        img = ax4.imshow(compassrose, zorder=4)  # origin='upper'
+        # need a font that support enough Unicode to draw up arrow. need space after Unicode to allow wide char to be drawm?
+        # ax4.text(0.5, 0.0, r'$\uparrow N$', ha='center', fontsize=30, family='sans-serif', rotation=0)
+        blank_axes(ax4)
 
     # ------------------------------------  Legend -------------------------------------
     # legends can be quite long, so set near top of map
@@ -2032,12 +2021,15 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     plt.close(fig)
 
 
-def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def l2_mapping(datadir, id="map", bands, p=None, rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
+    bands = list of three text segments included in the filenames of the RGB bands
     id = text identifying the mapping run, e.g. "Matalascanas"
     p = percentiles to be excluded from histogram stretching during image enhancement (0-100)
+    rosepath = directory pointing to the compass rose image (optional)
+    copyright = text statement for the copyright text
     figsizex, figsizey = figure size in inches
     zoom = zoom factor
     xoffset = offset in x direction in pixels
@@ -2102,7 +2094,7 @@ def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffse
                 break
             for i, iband in enumerate(rgbbands):
                 print("Reading data from band " + str(i) + ": " + iband[0])
-                bandx = gdal.Open(iband[0], gdal.GA_Update) # open a band
+                bandx = gdal.Open(iband[0], gdal.GA_ReadOnly) # open a band
                 data = bandx.ReadAsArray()
                 print("Band data shape: ")
                 print(data.shape)
@@ -2132,12 +2124,12 @@ def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffse
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
             map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
-                      mapfile=mapfile, maptitle=mytitle, figsizex=figsizex, figsizey=figsizey,
+                      mapfile=mapfile, maptitle=mytitle, rosepath=rosepath, copyright=copyright, figsizex=figsizex, figsizey=figsizey,
                       zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
 
-def map_all_class_images(classdir, id="map", cols=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def map_all_class_images(classdir, id="map", cols=None, rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to make a map for each class image in the class directory
     classdir = directory in which all classified images are stored (8-bit)
@@ -2189,7 +2181,9 @@ def map_all_class_images(classdir, id="map", cols=None, figsizex=8, figsizey=8, 
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
             map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
-                   mapfile=mapfile, maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
+                      mapfile=mapfile, maptitle=mytitle, rosepath=rosepath,
+                      figsizex=figsizex, figsizey=figsizey,
+                      zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
 

@@ -20,6 +20,14 @@ import argparse
 import os
 import gdal
 
+
+#############################################################################
+# OPTIONS
+#############################################################################
+copyright = '© University of Leicester, 2018. ' #text to be plotted on the maps
+bands = ['B02_10m','B03_10m','B04_10m'] #corresponds to 10 m resolution Sentinel-2 bands Red, Green, Blue for image display
+rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
+
 if __name__ == "__main__":
 
     do_all = True
@@ -83,17 +91,17 @@ if __name__ == "__main__":
     # Map making from L2A images
     if args.do_map or do_all:
         log.info("Making maps from L2A images")
-        n = pyeo.l2_mapping(l2_image_path, id="Overview", p=2, figsizex=16, figsizey=12, zoom=1, xoffset=0,
-                           yoffset=0)  # overview map
+        n = pyeo.l2_mapping(l2_image_path, id="Overview", p=2, rosepath=rosepath, copyright=copyright, bands=bands,
+                            figsizex=16, figsizey=12, zoom=1, xoffset=0, yoffset=0)  # overview map
         log.info("Made " + str(n) + " overview maps.")
-        n = pyeo.l2_mapping(l2_image_path, id="ZoomOut", p=2, figsizex=12, figsizey=12, zoom=2, xoffset=0,
-                           yoffset=0)  # zoom out
+        n = pyeo.l2_mapping(l2_image_path, id="ZoomOut", p=2, rosepath=rosepath, copyright=copyright, bands=bands,
+                            figsizex=12, figsizey=12, zoom=2, xoffset=0, yoffset=0)  # zoom out
         log.info("Made " + str(n) + " zoomed out maps.")
-        n = pyeo.l2_mapping(l2_image_path, id="ZoomIn", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
-                           yoffset=0)  # zoom in
+        n = pyeo.l2_mapping(l2_image_path, id="ZoomIn", p=2, rosepath=rosepath, copyright=copyright, bands=bands,
+                            figsizex=12, figsizey=12, zoom=0.1, xoffset=0, yoffset=0)  # zoom in
         log.info("Made " + str(n) + " zoomed in maps.")
-        n = pyeo.l2_mapping(l2_image_path, id="MoveLeft", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
-                           yoffset=-2500)  # move left
+        n = pyeo.l2_mapping(l2_image_path, id="MoveLeft", p=2, rosepath=rosepath, copyright=copyright, bands=bands,
+                            figsizex=12, figsizey=12, zoom=0.1, xoffset=0, yoffset=-2500)  # move left
         log.info("Made " + str(n) + " maps moved to the left.")
 
     # Merging / Aggregating layers into single image
