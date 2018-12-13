@@ -2020,12 +2020,14 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     plt.close(fig)
 
 
-def l2_mapping(datadir, mapdir, bands, id="map", p=None, rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def l2_mapping(datadir, mapdir, bands, shapefile, id="map", p=None,
+               rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
     mapdir = directory where all output maps will be stored
     bands = list of three text segments included in the filenames of the RGB bands
+    shapefile = shapefile name for plotting
     id = text identifying the mapping run, e.g. "Matalascanas"
     p = percentiles to be excluded from histogram stretching during image enhancement (0-100)
     rosepath = directory pointing to the compass rose image (optional)
@@ -2132,12 +2134,13 @@ def l2_mapping(datadir, mapdir, bands, id="map", p=None, rosepath=None, copyrigh
             counter = counter + 1
     return counter
 
-def map_all_class_images(classdir, mapdir, id="map", cols=None, rosepath=None, copyright=None, figsizex=8, figsizey=8,
+def map_all_class_images(classdir, mapdir, shapefile, id="map", cols=None, rosepath=None, copyright=None, figsizex=8, figsizey=8,
                          zoom=1, xoffset=0, yoffset=0):
     '''
     function to make a map for each class image in the class directory
     classdir = directory in which all classified images are stored (8-bit)
     mapdir = directory where all output maps will be stored
+    shapefile = shapefile name for plotting
     id = text identifying the mapping run, e.g. "Matalascanas"
     cols = colour table (optional)
     figsizex, figsizey = figure size in inches

@@ -77,6 +77,9 @@ if __name__ == "__main__":
     catagorised_image_path = os.path.join(project_root, r"output/classified")
     probability_image_path = os.path.join(project_root, r"output/probabilities")
 
+    # TODO include this in the .ini file
+    shapefile = aoi_path + '/marque.shp'  # shapefile of test area
+
     # Query and download
     if args.do_download or do_all:
         products = pyeo.check_for_s2_data_by_date(aoi_path, start_date, end_date, conf)
@@ -91,19 +94,19 @@ if __name__ == "__main__":
     # Map making from L2A images
     if args.do_map or do_all:
         log.info("Making maps from L2A images")
-        n = pyeo.l2_mapping(l2_image_path, l2_map_path, bands=bands, id="Overview", p=2, rosepath=rosepath,
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, bands=bands, id="Overview", p=2, rosepath=rosepath,
                             copyright=copyright, figsizex=16, figsizey=12,
                             zoom=1, xoffset=0, yoffset=0)  # overview map
         log.info("Made " + str(n) + " overview maps.")
-        n = pyeo.l2_mapping(l2_image_path, l2_map_path, bands=bands, id="ZoomOut", p=2, rosepath=rosepath,
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, bands=bands, id="ZoomOut", p=2, rosepath=rosepath,
                             copyright=copyright, figsizex=16, figsizey=16,
                             zoom=2, xoffset=0, yoffset=0)  # zoom out
         log.info("Made " + str(n) + " zoomed out maps.")
-        n = pyeo.l2_mapping(l2_image_path, l2_map_path, bands=bands, id="ZoomIn", p=2, rosepath=rosepath,
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, bands=bands, id="ZoomIn", p=2, rosepath=rosepath,
                             copyright=copyright, figsizex=12, figsizey=12,
                             zoom=0.1, xoffset=0, yoffset=0)  # zoom in
         log.info("Made " + str(n) + " zoomed in maps.")
-        n = pyeo.l2_mapping(l2_image_path, l2_map_path, bands=bands, id="MoveLeft", p=2, rosepath=rosepath,
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, bands=bands, id="MoveLeft", p=2, rosepath=rosepath,
                             copyright=copyright, figsizex=12, figsizey=12,
                             zoom=0.1, xoffset=0, yoffset=-2500)  # move left
         log.info("Made " + str(n) + " maps moved to the left.")
