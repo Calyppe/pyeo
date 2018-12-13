@@ -1653,7 +1653,7 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     This version creates different axes objects for the map, the location map and the legend.
 
     rgbdata = numpy array with the image data. Options:
-        3 channels containing red, green and blue channels will be displayed as a colour image
+        3 channels containing red, blue and green channels will be displayed as a colour image
         1 channel containing class values will be displayed using a colour table
     imgproj = map projection of the tiff files from which the rgbdata originate
     imgextent = extent of the satellite image in map coordinates
@@ -2026,7 +2026,7 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
     function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
     mapdir = directory where all output maps will be stored
-    bands = list of three text segments included in the filenames of the RGB bands
+    bands = list of three text segments included in the filenames of the RBG bands (in that order!)
     shapefile = shapefile name for plotting
     id = text identifying the mapping run, e.g. "Matalascanas"
     p = percentiles to be excluded from histogram stretching during image enhancement (0-100)
@@ -2082,19 +2082,19 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
             print('Retain bands with file name pattern matching:')
             for band in bands:
                 print(band)
-            rgbbands = []
+            RBG_bands = []
             for band in bands:
                 goodband = [x for x in sbands if band in x]
                 print(goodband)
-                rgbbands.append(goodband)
+                RBG_bands.append(goodband)
             print('Band files for map making:')
-            for band in rgbbands:
+            for band in RBG_bands:
                 print(band)
-            nbands = len(rgbbands)
+            nbands = len(RBG_bands)
             if not nbands == 3:
-                print("Error: Number of bands must be 3 for RGB.")
+                print("Error: Number of bands must be 3 for RBG.")
                 break
-            for i, iband in enumerate(rgbbands):
+            for i, iband in enumerate(RBG_bands):
                 print("Reading data from band " + str(i) + ": " + iband[0])
                 bandx = gdal.Open(iband[0], gdal.GA_ReadOnly) # open a band
                 data = bandx.ReadAsArray()
@@ -2115,10 +2115,10 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
                     projection = ccrs.epsg(projcs)
                     extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] +
                               nrows * geotrans[5], geotrans[3])
-                    rgbdata = np.zeros([nbands, data.shape[0], data.shape[1]],
-                                   dtype=np.uint8)  # recepticle for stretched RGB pixel values
+                    RBG_data = np.zeros([nbands, data.shape[0], data.shape[1]],
+                                        dtype=np.uint8)  # recepticle for stretched RGB pixel values
                 print("Histogram stretching of band " + str(i) + " using p=" + str(p))
-                rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to
+                RBG_data[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to
                     # 8 bit unsigned integers
                 bandx = None # close GDAL file
 
@@ -2127,7 +2127,7 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
             mapfile = mapdir + '/' + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
-            map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
+            map_image(RBG_data, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
                       mapfile=mapfile, maptitle=mytitle, rosepath=rosepath, copyright=copyright,
                       figsizex=figsizex, figsizey=figsizey,
                       zoom=zoom, xoffset=xoffset, yoffset=yoffset)
@@ -2183,12 +2183,12 @@ def map_all_class_images(classdir, mapdir, shapefile, id="map", cols=None, rosep
             projection = ccrs.epsg(projcs)
             extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
             classimg = None # close GDAL file
-            rgbdata = np.array([[cols[val] for val in row] for row in data], dtype=np.uint8) # ='B')
+            RBG_data = np.array([[cols[val] for val in row] for row in data], dtype=np.uint8) # ='B')
             mytitle = allscenes[x].split('.')[0]
             mapfile = mapdir + '/' + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
-            map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
+            map_image(RBG_data, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
                       mapfile=mapfile, maptitle=mytitle, rosepath=rosepath,
                       figsizex=figsizex, figsizey=figsizey,
                       zoom=zoom, xoffset=xoffset, yoffset=yoffset)
