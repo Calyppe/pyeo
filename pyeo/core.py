@@ -2059,7 +2059,7 @@ def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffse
     counter = 0 # count number of processed maps
     if len(allscenes) > 0:
         for x in range(len(allscenes)):
-            print("Caracas")
+            print("Entebbe")
             scenedir = datadir + "/" + allscenes[x] + "/"
             print("Reading scene", x + 1, ":", scenedir)
             os.chdir(scenedir) # set working directory to the Sentinel scene subdirectory
@@ -2131,8 +2131,9 @@ def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffse
             mapfile = mapdir + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
-            map_L2A_scene(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile,
-                          mapfile=mapfile, maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
+            map_L2A_scene(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
+                          mapfile=mapfile, maptitle=mytitle, figsizex=figsizex, figsizey=figsizey,
+                          zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
 
