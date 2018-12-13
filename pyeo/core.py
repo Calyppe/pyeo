@@ -2034,7 +2034,7 @@ def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffse
     if len(allscenes) > 0:
         for x in range(len(allscenes)):
             print("Caracas")
-            scenedir = datadir + allscenes[x] + "/"
+            scenedir = datadir + "/" + allscenes[x] + "/"
             print("Reading scene", x + 1, ":", scenedir)
             os.chdir(scenedir) # set working directory to the Sentinel scene subdirectory
             # to get the spatial footprint of the scene from the metadata file:
