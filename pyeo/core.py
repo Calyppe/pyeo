@@ -2020,7 +2020,7 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     plt.close(fig)
 
 
-def l2_mapping(datadir, mapdir, bands=['B02_10m','B03_10m','B04_10m'], shapefile, id="map", p=None,
+def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B02_10m','B03_10m','B04_10m'], p=None,
                rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
