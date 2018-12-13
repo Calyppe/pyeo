@@ -76,7 +76,7 @@ def blank_axes(ax):
     ax.spines['left'].set_visible(False)
     ax.yaxis.set_ticks_position('none')
     ax.xaxis.set_ticks_position('none')
-    ax.tick_params(labelbottom='off', labeltop='off', labelleft='off', labelright='off', \
+    ax.tick_params(labelbottom='off', labeltop='off', labelleft='off', labelright='off',
                    bottom='off', top='off', left='off', right='off')
 
 def get_gridlines(x0, x1, y0, y1, nticks):
@@ -311,7 +311,7 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
                     8: [204,155,153],
                     9: [204,102,0],
                     10: [0,128,255]}
-            temp = ax1.imshow(rgbdata[:, :]), extent=imgextent, origin='upper', zorder=1)
+            temp = ax1.imshow(rgbdata[:, :], extent=imgextent, origin='upper', zorder=1)
         else:
             print("Image data must contain 1 or 3 channels.")
 
