@@ -155,7 +155,7 @@ def stretch(im, nbins=256, p=None, nozero=True):
 def map_L2A_scene(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
                   maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
-    New map_L2A_scene function with scale bar located below the map but inside the enlarged map area
+    New map_image function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
 
     rgbdata = numpy array of the red, green and blue channels, made by read_sen2rgb
@@ -501,7 +501,7 @@ def map_L2A_scene(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
 
 def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
-    function to process the map_L2A_scene routine for all JPEG files in the Sentinel-2 L2A directory
+    function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
     id = text identifying the mapping run, e.g. "Matalascanas"
     p = percentiles to be excluded from histogram stretching during image enhancement (0-100)

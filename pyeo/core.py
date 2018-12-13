@@ -1659,10 +1659,10 @@ def stretch(im, nbins=256, p=None, nozero=True):
     image_equalized = np.interp(im.flatten(), bins[:-1], cdf)
     return image_equalized.reshape(im.shape), cdf
 
-def map_L2A_scene(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
-               maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
+def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
+              maptitle='', figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
-    New map_L2A_scene function with scale bar located below the map but inside the enlarged map area
+    New map_image function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
 
     rgbdata = numpy array with the image data. Options:
@@ -2034,7 +2034,7 @@ def map_L2A_scene(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='ma
 
 def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
-    function to process the map_L2A_scene routine for all JPEG files in the Sentinel-2 L2A directory
+    function to process the map_image routine for all JPEG files in the Sentinel-2 L2A directory
     datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
     id = text identifying the mapping run, e.g. "Matalascanas"
     p = percentiles to be excluded from histogram stretching during image enhancement (0-100)
@@ -2131,9 +2131,9 @@ def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffse
             mapfile = mapdir + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
-            map_L2A_scene(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
-                          mapfile=mapfile, maptitle=mytitle, figsizex=figsizex, figsizey=figsizey,
-                          zoom=zoom, xoffset=xoffset, yoffset=yoffset)
+            map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
+                      mapfile=mapfile, maptitle=mytitle, figsizex=figsizex, figsizey=figsizey,
+                      zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
 
@@ -2188,7 +2188,7 @@ def map_all_class_images(classdir, id="map", cols=None, figsizex=8, figsizey=8, 
             mapfile = mapdir + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
-            map_it(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
+            map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
                    mapfile=mapfile, maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
