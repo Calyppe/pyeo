@@ -82,16 +82,16 @@ if __name__ == "__main__":
     # Map making from L2A images
     if args.do_map or do_all:
         log.info("Making maps from L2A images")
-        n = l2_mapping(l2_image_path, id="Overview", p=2, figsizex=16, figsizey=12, zoom=1, xoffset=0,
+        n = pyeo.l2_mapping(l2_image_path, id="Overview", p=2, figsizex=16, figsizey=12, zoom=1, xoffset=0,
                            yoffset=0)  # overview map
         log.info("Made " + str(n) + " overview maps.")
-        n = l2_mapping(l2_image_path, id="ZoomOut", p=2, figsizex=12, figsizey=12, zoom=2, xoffset=0,
+        n = pyeo.l2_mapping(l2_image_path, id="ZoomOut", p=2, figsizex=12, figsizey=12, zoom=2, xoffset=0,
                            yoffset=0)  # zoom out
         log.info("Made " + str(n) + " zoomed out maps.")
-        n = l2_mapping(l2_image_path, id="ZoomIn", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
+        n = pyeo.l2_mapping(l2_image_path, id="ZoomIn", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
                            yoffset=0)  # zoom in
         log.info("Made " + str(n) + " zoomed in maps.")
-        n = l2_mapping(l2_image_path, id="MoveLeft", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
+        n = pyeo.l2_mapping(l2_image_path, id="MoveLeft", p=2, figsizex=12, figsizey=12, zoom=0.1, xoffset=0,
                            yoffset=-2500)  # move left
         log.info("Made " + str(n) + " maps moved to the left.")
 

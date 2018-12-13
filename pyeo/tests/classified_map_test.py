@@ -314,7 +314,6 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
             temp = ax1.imshow(rgbdata[:, :]), extent=imgextent, origin='upper', zorder=1)
         else:
             print("Image data must contain 1 or 3 channels.")
-            break
 
     #  read shapefile and plot it onto the tiff image map
     shape_feature = ShapelyFeature(Reader(shapefile).geometries(), crs=shapeproj,
@@ -628,111 +627,6 @@ def map_all_scenes(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xo
                    mapfile=mapfile, maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
             counter = counter + 1
     return counter
-
-def l2_mapping(datadir, id="map", p=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
-    '''
-    function to process the map_L2A_scene routine for all JPEG files in the Sentinel-2 L2A directory
-    datadir = directory in which all L2A scenes are stored as downloaded from Sentinel Data Hub
-    id = text identifying the mapping run, e.g. "Matalascanas"
-    p = percentiles to be excluded from histogram stretching during image enhancement (0-100)
-    figsizex, figsizey = figure size in inches
-    zoom = zoom factor
-    xoffset = offset in x direction in pixels
-    yoffset = offset in x direction in pixels
-    '''
-
-    # get Sentinel L2A scene list from data directory
-    allscenes = [f for f in listdir(datadir) if isdir(join(datadir, f))]
-    allscenes = sorted(allscenes)
-    print('\nSentinel-2 directory: ' + datadir)
-    print('\nList of Sentinel-2 scenes:')
-    for scene in allscenes:
-        if not(scene.endswith('.SAFE')):
-            allscenes.remove(scene)  # remove all directory names except SAFE files
-        else:
-            print(scene)
-    print('\n')
-
-    counter = 0 # count number of processed maps
-    if len(allscenes) > 0:
-        for x in range(len(allscenes)):
-            print("Caracas")
-            scenedir = datadir + allscenes[x] + "/"
-            print("Reading scene", x + 1, ":", scenedir)
-            os.chdir(scenedir) # set working directory to the Sentinel scene subdirectory
-            # to get the spatial footprint of the scene from the metadata file:
-            # get the list of filenames ending in .xml, but exclude 'INSPIRE.xml'
-            xmlfiles = [f for f in os.listdir(scenedir) if f.endswith('.xml') & (1 - f.startswith('INSPIRE'))]
-            # print('Reading footprint from ' + xmlfiles[0])
-            with open(xmlfiles[0], errors='ignore') as f: # use the first .xml file in the directory
-                content = f.readlines()
-            content = [x.strip() for x in content] # remove whitespace characters like `\n` at the end of each line
-            footprint = [x for x in content if x.startswith('<EXT_POS_LIST>')] # find the footprint in the metadata
-            footprint = footprint[0].split(" ") # the first element is a string, extract and split it
-            footprint[0] = footprint[0].split(">")[1] #   and split off the metadata text
-            footprint = footprint[:-1] #   and remove the metadata text at the end of the list
-            footprint = [float(s) for s in footprint] # convert the string list to floats
-            footprinty = footprint[0::2]  # list slicing to separate latitudes: list[start:stop:step]
-            footprintx = footprint[1::2]  # list slicing to separate longitudes: list[start:stop:step]
-            os.chdir(datadir + allscenes[x] + "/" + "GRANULE" + "/")
-            sdir = listdir()[0]  # only one subdirectory expected in this directory
-            imgdir = datadir + allscenes[x] + "/" + "GRANULE" + "/" + sdir + "/" + "IMG_DATA/R10m/"
-            os.chdir(imgdir) # go to the image data subdirectory
-            sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
-            print('Bands in granule directory: ')
-            for band in sbands:
-                print(band)
-            print('Retain bands with file name pattern matching:')
-            for band in bands:
-                print(band)
-            rgbbands = []
-            for band in bands:
-                goodband = [x for x in sbands if band in x]
-                print(goodband)
-                rgbbands.append(goodband)
-            print('Band files for map making:')
-            for band in rgbbands:
-                print(band)
-            nbands = len(rgbbands)
-            if not nbands == 3:
-                print("Error: Number of bands must be 3 for RGB.")
-                break
-            for i, iband in enumerate(rgbbands):
-                print("Reading data from band " + str(i) + ": " + iband[0])
-                bandx = gdal.Open(iband[0], gdal.GA_Update) # open a band
-                data = bandx.ReadAsArray()
-                print("Band data shape: ")
-                print(data.shape)
-                if i == 0:
-                    ncols = bandx.RasterXSize
-                    nrows = bandx.RasterYSize
-                    geotrans = bandx.GetGeoTransform()
-                    proj = bandx.GetProjection()
-                    inproj = osr.SpatialReference()
-                    inproj.ImportFromWkt(proj)
-                    ulx = geotrans[0]  # Upper Left corner coordinate in x
-                    uly = geotrans[3]  # Upper Left corner coordinate in y
-                    pixelWidth = geotrans[1]  # pixel spacing in map units in x
-                    pixelHeight = geotrans[5]  # (negative) pixel spacing in y
-                    projcs = inproj.GetAuthorityCode('PROJCS')
-                    projection = ccrs.epsg(projcs)
-                    extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] + nrows * geotrans[5], geotrans[3])
-                    rgbdata = np.zeros([nbands, data.shape[0], data.shape[1]],
-                                   dtype=np.uint8)  # recepticle for stretched RGB pixel values
-                print("Histogram stretching of band " + str(i) + " using p=" + str(p))
-                rgbdata[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to 8 bit unsigned integers
-                bandx = None # close GDAL file
-
-            # plot the image as RGB on a cartographic map
-            mytitle = allscenes[x].split('.')[0]
-            mapfile = mapdir + id + mytitle + '.jpg'
-            print('   shapefile = ' + shapefile)
-            print('   output map file = ' + mapfile)
-            map_L2A_scene(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile,
-                          mapfile=mapfile, maptitle=mytitle, zoom=zoom, xoffset=xoffset, yoffset=yoffset)
-            counter = counter + 1
-    return counter
-
 
 def map_all_class_images(classdir, id="map", cols=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
