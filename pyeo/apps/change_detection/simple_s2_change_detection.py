@@ -18,6 +18,7 @@ import pyeo.core as pyeo
 import configparser
 import argparse
 import os
+import gdal
 
 if __name__ == "__main__":
 
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # If any processing step args are present, do not assume that we want to do all steps
-    if (args.do_download or args.do_preprocess or args.do_merge or args.do_stack or args.do_mosaic or args.do_classify):
+    if args.do_download or args.do_preprocess or args.do_merge or args.do_stack or args.do_mosaic or args.do_classify:
         do_all = False
 
     conf = configparser.ConfigParser()
