@@ -65,6 +65,11 @@ class BadDataSourceExpection(ForestSentinelException):
     pass
 
 
+MODEL_DEFAULT = ens.ExtraTreesClassifier(
+    bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
+    min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
+
+
 def sent2_query(user, passwd, geojsonfile, start_date, end_date, cloud=50):
     """
 
@@ -1563,7 +1568,7 @@ def reshape_prob_out_to_raster(probs, width, height):
     return image_array
 
 
-def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attribute="CODE"):
+def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attribute="CODE", model=MODEL_DEFAULT):
     """Returns a trained random forest model from the training data. This
     assumes that image and model are in the same directory, with a shapefile.
     Give training_image_path a path to a list of .tif files. See spec in the R drive for data structure.
@@ -1582,8 +1587,6 @@ def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attri
         else:
             learning_data = np.append(learning_data, this_training_data, 0)
             classes = np.append(classes, this_classes)
-    model = ens.ExtraTreesClassifier(bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
-                                     min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
     model.fit(learning_data, classes)
     scores = cross_val_score(model, learning_data, classes, cv=cross_val_repeats)
     return model, scores
