@@ -2122,7 +2122,7 @@ def l2_mapping(datadir, mapdir, bands, id="map", p=None, rosepath=None, copyrigh
 
             # plot the image as RGB on a cartographic map
             mytitle = allscenes[x].split('.')[0]
-            mapfile = mapdir + id + mytitle + '.jpg'
+            mapfile = mapdir + '/' + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
             map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
@@ -2182,7 +2182,7 @@ def map_all_class_images(classdir, mapdir, id="map", cols=None, rosepath=None, c
             classimg = None # close GDAL file
             rgbdata = np.array([[cols[val] for val in row] for row in data], dtype=np.uint8) # ='B')
             mytitle = allscenes[x].split('.')[0]
-            mapfile = mapdir + id + mytitle + '.jpg'
+            mapfile = mapdir + '/' + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
             print('   output map file = ' + mapfile)
             map_image(rgbdata, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
