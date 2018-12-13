@@ -1646,16 +1646,16 @@ def stretch(im, nbins=256, p=None, nozero=True):
     return image_equalized.reshape(im.shape), cdf
 
 
-def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
+def map_image(RBG_data, imgproj, imgextent, shapefile, cols=None, mapfile='map.jpg',
               maptitle='', rosepath=None, copyright=None, figsizex=8, figsizey=8, zoom=1, xoffset=0, yoffset=0):
     '''
     New map_image function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
 
-    rgbdata = numpy array with the image data. Options:
+    RBG_data = numpy array with the image data. Options:
         3 channels containing red, blue and green channels will be displayed as a colour image
         1 channel containing class values will be displayed using a colour table
-    imgproj = map projection of the tiff files from which the rgbdata originate
+    imgproj = map projection of the tiff files from which the RBG_data originate
     imgextent = extent of the satellite image in map coordinates
     shapefile = shapefile name to be plotted on top of the map
     cols = colour table for display of class image (optional)
@@ -1785,12 +1785,12 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
     # rotate x axis labels
     ax1.tick_params(axis='x', labelrotation=90)
 
-    if rgbdata.shape[0] == 3:
-        # show RGB image if 3 colour channels are present
-        temp = ax1.imshow(rgbdata[:3, :, :].transpose((1, 2, 0)),
+    if RBG_data.shape[0] == 3:
+        # show RBG image if 3 colour channels are present
+        temp = ax1.imshow(RBG_data[:3, :, :].transpose((1, 2, 0)),
                           extent=imgextent, origin='upper', zorder=1)
     else:
-        if rgbdata.shape[0] == 1:
+        if RBG_data.shape[0] == 1:
             # show classified image with look-up colour table if only one channel is present
             if cols is None:
                 cols = {
@@ -1805,7 +1805,7 @@ def map_image(rgbdata, imgproj, imgextent, shapefile, cols=None, mapfile='map.jp
                     8: [204, 155, 153],
                     9: [204, 102, 0],
                     10: [0, 128, 255]}
-            temp = ax1.imshow(rgbdata[:, :], extent=imgextent, origin='upper', zorder=1)
+            temp = ax1.imshow(RBG_data[:, :], extent=imgextent, origin='upper', zorder=1)
         else:
             print("Image data must contain 1 or 3 channels.")
 
@@ -2115,14 +2115,12 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
                     projection = ccrs.epsg(projcs)
                     extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] +
                               nrows * geotrans[5], geotrans[3])
-                    RBG_data = np.zeros([nbands, data.shape[0], data.shape[1]],
-                                        dtype=np.uint8)  # recepticle for stretched RGB pixel values
+                    RBG_data = np.zeros([nbands, data.shape[0], data.shape[1]], dtype=np.uint8)
                 print("Histogram stretching of band " + str(i) + " using p=" + str(p))
                 RBG_data[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to
                     # 8 bit unsigned integers
                 bandx = None # close GDAL file
 
-            # plot the image as RGB on a cartographic map
             mytitle = allscenes[x].split('.')[0]
             mapfile = mapdir + '/' + id + mytitle + '.jpg'
             print('   shapefile = ' + shapefile)
