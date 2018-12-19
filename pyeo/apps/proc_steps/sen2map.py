@@ -16,8 +16,8 @@ Created on Sat Mar 24 12:11:00 2018
 #   %matplotlib
 
 ########################
-# TODO plot multiple adjacent scenes onto the same map by providing a list of scene IDs to map_it
-#   instead of rgbdata and running readsen2rgb from within map_it
+# TODO plot multiple adjacent scenes onto the same map by providing a list of scene IDs to map_image
+#   instead of rgbdata and running readsen2rgb from within map_image
 ########################
 
 from cartopy.io.shapereader import Reader
@@ -204,7 +204,7 @@ def scale_bar_left(ax, bars=4, length=None, location=(0.1, 0.05), linewidth=3, c
         id = 'map8', zoom = 1 / 256, xoffset = round(-109800 * 0.311), yoffset = round(-109800 * 0.134))
     File    "/home/h/hb91/PycharmProjects/pyeo/pyeo/sen2map.py", line    1343, in geotif2maps
         shapefile = shapefile, plotfile = plotfile, plottitle = title)
-    File    "/home/h/hb91/PycharmProjects/pyeo/pyeo/sen2map.py", line    831, in map_it
+    File    "/home/h/hb91/PycharmProjects/pyeo/pyeo/sen2map.py", line    831, in map_image
         length = scale_number(length)
     File    "/home/h/hb91/PycharmProjects/pyeo/pyeo/sen2map.py", line    829, in scale_number
         return scale_number(x - 10 ** ndim)
@@ -680,7 +680,7 @@ def draw_scale_bar(ax, tifproj, bars=4, length=None, location=(0.1, 0.8), linewi
 def map_it(rgbdata, tifproj, mapextent, imgextent, shapefile, plotfile='map.jpg',
                  plottitle='', figsizex=8, figsizey=8):
     '''
-    New map_it function with scale bar located below the map but inside the enlarged map area
+    New map_image function with scale bar located below the map but inside the enlarged map area
     This version creates different axes objects for the map, the location map and the legend.
 
     rgbdata = numpy array of the red, green and blue channels, made by read_sen2rgb

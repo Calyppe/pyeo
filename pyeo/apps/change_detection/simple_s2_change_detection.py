@@ -18,6 +18,14 @@ import pyeo.core as pyeo
 import configparser
 import argparse
 import os
+import gdal
+
+
+#############################################################################
+# OPTIONS
+#############################################################################
+copyright = '© University of Leicester, 2018. ' #text to be plotted on the maps
+rosepath = '/home/h/hb91/PycharmProjects/pyeo/pyeo/' # location of compassrose.jpg on HPC
 
 if __name__ == "__main__":
 
@@ -29,6 +37,7 @@ if __name__ == "__main__":
                         help="Path to the .ini file specifying the job.")
     parser.add_argument('-d', '--download', dest='do_download', action='store_true', default=False)
     parser.add_argument('-p', '--preprocess', dest='do_preprocess', action='store_true',  default=False)
+    parser.add_argument('-M', '--Map', dest='do_map', action='store_true', default=False)
     parser.add_argument('-m', '--merge', dest='do_merge', action='store_true', default=False)
     parser.add_argument('-s', '--stack', dest='do_stack', action='store_true', default=False)
     parser.add_argument('-o', '--mosaic', dest='do_mosaic', action='store_true', default=False)
@@ -36,7 +45,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # If any processing step args are present, do not assume that we want to do all steps
-    if (args.do_download or args.do_preprocess or args.do_merge or args.do_stack or args.do_mosaic or args.do_classify):
+    if args.do_download or args.do_preprocess or args.do_map or args.do_merge or args.do_stack \
+            or args.do_mosaic or args.do_classify:
         do_all = False
 
     conf = configparser.ConfigParser()
@@ -58,12 +68,16 @@ if __name__ == "__main__":
 
     l1_image_path = os.path.join(project_root, r"images/L1")
     l2_image_path = os.path.join(project_root, r"images/L2")
+    l2_map_path = os.path.join(project_root, r"images/maps")
     planet_image_path = os.path.join(project_root, r"images/planet")
     merged_image_path = os.path.join(project_root, r"images/merged")
     stacked_image_path = os.path.join(project_root, r"images/stacked")
     mosaic_image_path = os.path.join(project_root, r"images/mosaic")
     catagorised_image_path = os.path.join(project_root, r"output/classified")
     probability_image_path = os.path.join(project_root, r"output/probabilities")
+
+    # TODO include this in the .ini file
+    shapefile = '/scratch/clcr/shared/heiko/aois/marque.shp'
 
     # Query and download
     if args.do_download or do_all:
@@ -75,6 +89,26 @@ if __name__ == "__main__":
     if args.do_preprocess or do_all:
         log.info("Applying sen2cor")
         pyeo.atmospheric_correction(l1_image_path, l2_image_path, sen2cor_path, delete_unprocessed_image=False)
+
+    # Map making from L2A images
+    if args.do_map or do_all:
+        log.info("Making maps from L2A images")
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, id="Overview", p=2, rosepath=rosepath,
+                            copyright=copyright, figsizex=16, figsizey=12,
+                            zoom=1, xoffset=0, yoffset=0)  # overview map
+        log.info("Made " + str(n) + " overview maps.")
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, id="ZoomOut", p=2, rosepath=rosepath,
+                            copyright=copyright, figsizex=16, figsizey=16,
+                            zoom=2, xoffset=0, yoffset=0)  # zoom out
+        log.info("Made " + str(n) + " zoomed out maps.")
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, id="ZoomIn", p=2, rosepath=rosepath,
+                            copyright=copyright, figsizex=12, figsizey=12,
+                            zoom=0.1, xoffset=0, yoffset=0)  # zoom in
+        log.info("Made " + str(n) + " zoomed in maps.")
+        n = pyeo.l2_mapping(l2_image_path, l2_map_path, shapefile, id="MoveLeft", p=2, rosepath=rosepath,
+                            copyright=copyright, figsizex=12, figsizey=12,
+                            zoom=0.1, xoffset=0, yoffset=-2500)  # move left
+        log.info("Made " + str(n) + " maps moved to the left.")
 
     # Merging / Aggregating layers into single image
     if args.do_merge or do_all:
