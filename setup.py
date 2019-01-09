@@ -11,7 +11,7 @@ setup(
     description='Modular processing chain from download to ard',
     install_requires=[
         'sentinelsat>=0.12.1',
-        'sentinelhub>=2.4.2',
+        'sentinelhub>=1.1.1',
         'pytest>=3.5.0',
         'pygdal>=2.3.0',
         'numpy>=1.15.4',
