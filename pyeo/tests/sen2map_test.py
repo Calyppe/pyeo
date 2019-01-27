@@ -493,7 +493,7 @@ def map_it(rgbdata, imgproj, imgextent, shapefile, mapfile='map.jpg',
     ax5.set_title('Legend', loc='left')
 
     # show the map
-    fig.show()
+    #fig.show()
 
     # save it to a file
     fig.savefig(mapfile)
