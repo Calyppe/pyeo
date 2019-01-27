@@ -2116,9 +2116,10 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
                     extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] +
                               nrows * geotrans[5], geotrans[3])
                     RBG_data = np.zeros([nbands, data.shape[0], data.shape[1]], dtype=np.uint8)
+
+#TODO stretching should be done only with the clipped image that will be plotted onto the map, not the whole scene
                 print("Histogram stretching of band " + str(i) + " using p=" + str(p))
-                RBG_data[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to
-                    # 8 bit unsigned integers
+                RBG_data[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to uint8
                 bandx = None # close GDAL file
 
             mytitle = allscenes[x].split('.')[0]
