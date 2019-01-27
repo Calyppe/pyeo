@@ -1579,7 +1579,6 @@ def get_gridlines(x0, x1, y0, y1, nticks):
     '''
     # calculate length of axis
     lx = x1 - x0
-
     # count number of digits of axis lengths
     nlx = int(np.log10(lx) + 1)
 
@@ -1602,14 +1601,15 @@ def get_gridlines(x0, x1, y0, y1, nticks):
     xs = int(x0 / 10 ** ndigits) * 10 ** ndigits
 
     # set x ticks positions
-    xticks = np.arange(xs, x1 + dx -1, dx)
-    #xticks = [x for x in xt if (x >= x0 and x <=x1)] # checks whether outside of map boundary, not needed
+    xt = np.arange(xs, x1 + dx -1, dx)
+    xticks = [x for x in xt if (x >= x0 and x <= x1)] # checks whether outside of map boundary
 
     # find position of the first pretty gridline just outside the map area
     ys = int(y0 / 10 ** ndigits) * 10 ** ndigits
 
     # set y ticks positions
-    yticks = np.arange(ys, y1 + dx -1, dx)
+    yt = np.arange(ys, y1 + dx -1, dx)
+    yticks = [y for y in yt if (y >= y0 and y <=y1)] # checks whether outside of map boundary
 
     return xticks, yticks
 
