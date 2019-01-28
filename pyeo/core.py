@@ -2039,29 +2039,28 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
     '''
 
     # get Sentinel L2A scene list from data directory
-    log = logging.getLogger(__name__)
     allscenes = [f for f in listdir(datadir) if isdir(join(datadir, f))]
     allscenes = sorted(allscenes)
-    log.info('\nSentinel-2 directory: ' + datadir)
-    log.info('\nList of Sentinel-2 scenes:')
+    print('\nSentinel-2 directory: ' + datadir)
+    print('\nList of Sentinel-2 scenes:')
     for scene in allscenes:
         if not(scene.endswith('.SAFE')):
             allscenes.remove(scene)  # remove all directory names except SAFE files
         else:
-            log.info(scene)
-    log.info('\n')
+            print(scene)
+    print('\n')
 
     counter = 0 # count number of processed maps
     if len(allscenes) > 0:
         for x in range(len(allscenes)):
-            log.info("Entebbe")
+            print("Entebbe")
             scenedir = datadir + "/" + allscenes[x] + "/"
-            log.info("Reading scene", x + 1, ":", scenedir)
+            print("Reading scene", x + 1, ":", scenedir)
             os.chdir(scenedir) # set working directory to the Sentinel scene subdirectory
             # to get the spatial footprint of the scene from the metadata file:
             # get the list of filenames ending in .xml, but exclude 'INSPIRE.xml'
             xmlfiles = [f for f in os.listdir(scenedir) if f.endswith('.xml') & (1 - f.startswith('INSPIRE'))]
-            # log.info('Reading footprint from ' + xmlfiles[0])
+            # print('Reading footprint from ' + xmlfiles[0])
             with open(xmlfiles[0], errors='ignore') as f: # use the first .xml file in the directory
                 content = f.readlines()
             content = [x.strip() for x in content] # remove whitespace characters like `\n` at the end of each line
@@ -2077,30 +2076,30 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
             imgdir = scenedir + "GRANULE" + "/" + sdir + "/" + "IMG_DATA/R10m/"
             os.chdir(imgdir) # go to the image data subdirectory
             sbands = sorted([f for f in os.listdir(imgdir) if f.endswith('.jp2')]) # get the list of jpeg filenames
-            log.info('Bands in granule directory: ')
+            print('Bands in granule directory: ')
             for band in sbands:
-                log.info(band)
-            log.info('Retain bands with file name pattern matching:')
+                print(band)
+            print('Retain bands with file name pattern matching:')
             for band in bands:
-                log.info(band)
+                print(band)
             RBG_bands = []
             for band in bands:
                 goodband = [x for x in sbands if band in x]
-                log.info(goodband)
+                print(goodband)
                 RBG_bands.append(goodband)
-            log.info('Band files for map making:')
+            print('Band files for map making:')
             for band in RBG_bands:
-                log.info(band)
+                print(band)
             nbands = len(RBG_bands)
             if not nbands == 3:
-                log.info("Error: Number of bands must be 3 for RBG.")
+                print("Error: Number of bands must be 3 for RBG.")
                 break
             for i, iband in enumerate(RBG_bands):
-                log.info("Reading data from band " + str(i) + ": " + iband[0])
+                print("Reading data from band " + str(i) + ": " + iband[0])
                 bandx = gdal.Open(iband[0], gdal.GA_ReadOnly) # open a band
                 data = bandx.ReadAsArray()
-                log.info("Band data shape: ")
-                log.info(data.shape)
+                print("Band data shape: ")
+                print(data.shape)
                 if i == 0:
                     ncols = bandx.RasterXSize
                     nrows = bandx.RasterYSize
@@ -2114,19 +2113,25 @@ def l2_mapping(datadir, mapdir, shapefile, id="map", bands=['B04_10m','B02_10m',
                     pixelHeight = geotrans[5]  # (negative) pixel spacing in y
                     projcs = inproj.GetAuthorityCode('PROJCS')
                     projection = ccrs.epsg(projcs)
-                    extent = (geotrans[0], geotrans[0] + ncols * geotrans[1], geotrans[3] +
-                              nrows * geotrans[5], geotrans[3])
+                    extent = (ulx, ulx + ncols * pixelWidth, uly + nrows * pixelHeight, uly)
                     RBG_data = np.zeros([nbands, data.shape[0], data.shape[1]], dtype=np.uint8)
 
 #TODO stretching should be done only with the clipped image that will be plotted onto the map, not the whole scene
-                log.info("Histogram stretching of band " + str(i) + " using p=" + str(p))
-                RBG_data[i, :, :] = np.uint8(stretch(data)[0], p=p) # histogram stretching and converting to uint8
+                # work out the zoomed image extent based on zoom, xoffset and yoffset
+                width = (extent[1] - extent[0]) * zoom  # work out the width and height of the zoom image
+                height = (extent[3] - extent[2]) * zoom
+                x1 = xoffset  # calculate position of first and last pixels in array
+                x2 = xoffset + ncols * zoom
+                y1 = yoffset
+                y2 = yoffset + nrows* zoom
+                print("Histogram stretching of band " + str(i) + " using p=" + str(p))
+                RBG_data[i, x1:x2, y1:y2] = np.uint8(stretch(data[x1:x2, y1:y2])[0], p=p) # histogram stretching and converting to uint8
                 bandx = None # close GDAL file
 
             mytitle = allscenes[x].split('.')[0]
             mapfile = mapdir + '/' + id + mytitle + '.jpg'
-            log.info('   shapefile = ' + shapefile)
-            log.info('   output map file = ' + mapfile)
+            print('   shapefile = ' + shapefile)
+            print('   output map file = ' + mapfile)
             map_image(RBG_data, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=None,
                       mapfile=mapfile, maptitle=mytitle, rosepath=rosepath, copyright=copyright,
                       figsizex=figsizex, figsizey=figsizey,
@@ -2149,27 +2154,26 @@ def map_all_class_images(classdir, mapdir, shapefile, id="map", cols=None, rosep
     yoffset = offset in x direction in pixels
     '''
 
-    log = logging.getLogger(__name__)
     # get image list
     os.chdir(classdir)  # set working directory to the Sentinel scene subdirectory
     allscenes = [f for f in listdir(classdir) if isfile(join(classdir, f))]
     allscenes = sorted(allscenes)
-    log.info('\nClassified image directory: ' + classdir)
-    log.info('\nList of classified images:')
+    print('\nClassified image directory: ' + classdir)
+    print('\nList of classified images:')
     for scene in allscenes:
-        log.info(scene)
-    log.info('\n')
+        print(scene)
+    print('\n')
 
     counter = 0 # count number of processed maps
     if len(allscenes) > 0:
         for x in range(len(allscenes)):
-            log.info("Dusseldorf")
-            log.info("Reading scene", x + 1, ":", allscenes[x])
+            print("Dusseldorf")
+            print("Reading scene", x + 1, ":", allscenes[x])
             # get the spatial extent from the geotiff file
             classimg = gdal.Open(classdir+allscenes[x], gdal.GA_ReadOnly)
             data = classimg.ReadAsArray()
-            log.info("Image data shape: ")
-            log.info(data.shape)
+            print("Image data shape: ")
+            print(data.shape)
             geotrans = classimg.GetGeoTransform()
             ulx = geotrans[0]  # Upper Left corner coordinate in x
             uly = geotrans[3]  # Upper Left corner coordinate in y
@@ -2187,8 +2191,8 @@ def map_all_class_images(classdir, mapdir, shapefile, id="map", cols=None, rosep
             RBG_data = np.array([[cols[val] for val in row] for row in data], dtype=np.uint8) # ='B')
             mytitle = allscenes[x].split('.')[0]
             mapfile = mapdir + '/' + id + mytitle + '.jpg'
-            log.info('   shapefile = ' + shapefile)
-            log.info('   output map file = ' + mapfile)
+            print('   shapefile = ' + shapefile)
+            print('   output map file = ' + mapfile)
             map_image(RBG_data, imgproj=projection, imgextent=extent, shapefile=shapefile, cols=cols,
                       mapfile=mapfile, maptitle=mytitle, rosepath=rosepath,
                       figsizex=figsizex, figsizey=figsizey,

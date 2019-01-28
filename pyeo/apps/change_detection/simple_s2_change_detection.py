@@ -77,7 +77,7 @@ if __name__ == "__main__":
     probability_image_path = os.path.join(project_root, r"output/probabilities")
 
     # TODO include this in the .ini file
-    shapefile = '/scratch/clcr/shared/heiko/aois/marque.shp'
+    shapefile = '/scratch/clcr/shared/heiko/marque_de_com/aois/marque.shp'
 
     # Query and download
     if args.do_download or do_all:
