@@ -444,7 +444,8 @@ def validate_l2_data(l2_SAFE_file, resolution="10m"):
         log.error("{} is not a valid L2 file")
         return True
     log.info("Checking {} for incomplete {} imagery".format(l2_SAFE_file, resolution))
-    granule_path = r"GRANULE/*/IMG_DATA/R{}/*_B0[8,4,3,2]_*.jp2".format(resolution)
+    #granule_path = r"GRANULE/*/IMG_DATA/R{}/*_B0[8,4,3,2]_*.jp2".format(resolution)
+    granule_path = r"GRANULE/*/IMG_DATA/*_B0[8,4,3,2]_*.jp2".format(resolution)
     image_glob = os.path.join(l2_SAFE_file, granule_path)
     if glob.glob(image_glob):
         return True
