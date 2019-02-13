@@ -44,8 +44,8 @@ If you want to edit this code, run
 
    python setup.py devel
 
-instead of :code:`install`
 
+instead of :code:`install`
 To verify the installation, open a Python prompt and type
 
 >>> import pyeo
@@ -110,7 +110,7 @@ Sentinel 2 preprocessing
 
  .. autofunction:: open_dataset_from_safe
 
- .. autofunction:: aggregate_and_mask_10m_bands
+ .. autofunction:: preprocess_sen2_images
 
  .. autofunction:: stack_sentinel_2_bands
 
@@ -133,6 +133,10 @@ Raster processing
  .. autofunction:: get_raster_size
 
  .. autofunction:: resample_image_in_place
+
+ .. autofunction:: composite_images_with_mask
+
+ .. autofunction:: composite_directory
 
 
 Geometry processing
@@ -180,7 +184,7 @@ Raster/Geometry interactions
 Masking functions
 -----------------
 
- .. autofunction:: create_cloud_mask
+ .. autofunction:: create_mask_from_model
 
  .. autofunction:: create_mask_from_confidence_layer
 
@@ -231,3 +235,11 @@ simple_s2_change_detection.py
 create_model_from_shapefile_and_raster.py
 ------------------------------
  .. automodule:: pyeo.apps.model_creation.create_model_from_shapefile_and_raster
+
+composite_directory.py
+----------------------
+ .. automodule:: pyeo.apps.subprocessing.composite_directory
+
+extract_signatures.py
+---------------------
+ .. automodule:: pyeo.apps.subprocessing.extract_signatures
