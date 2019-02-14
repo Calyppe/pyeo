@@ -1809,6 +1809,14 @@ def create_model_from_signatures(sig_csv_path, model_out):
     joblib.dump(model, model_out)
 
 
+def reproject_shapefile(in_file_path, out_file_path, new_proj_wkt):
+    log = logging.getLogger(__name__)
+    args = ["ogr2ogr",
+            "-t_srs", new_proj_wkt,
+            out_file_path, in_file_path]
+    subprocess.run(args)
+
+
 def get_training_data(image_path, shape_path, attribute="CODE", shape_projection_id=4326):
     """Given an image and a shapefile with categories, return x and y suitable
     for feeding into random_forest.fit.
@@ -1820,7 +1828,13 @@ def get_training_data(image_path, shape_path, attribute="CODE", shape_projection
         shape_projection.ImportFromEPSG(shape_projection_id)
         image = gdal.Open(image_path)
         image_gt = image.GetGeoTransform()
+        image_epsg = image.GetProjection()
         x_res, y_res = image_gt[1], image_gt[5]
+
+        # Reproject shapefile to sensible projection?
+        temp_shape_path = os.path.join(td, "tmp_shape_path.shp")
+        reproject_shapefile(shape_path, temp_shape_path, image_epsg)
+
         ras_path = os.path.join(td, "poly_ras")
         ras_params = gdal.RasterizeOptions(
             noData=0,
@@ -1832,7 +1846,7 @@ def get_training_data(image_path, shape_path, attribute="CODE", shape_projection
         )
         # This produces a rasterised geotiff that's right, but not perfectly aligned to pixels.
         # This can probably be fixed.
-        gdal.Rasterize(ras_path, shape_path, options=ras_params)
+        gdal.Rasterize(ras_path, temp_shape_path, options=ras_params)
         rasterised_shapefile = gdal.Open(ras_path)
         shape_array = rasterised_shapefile.GetVirtualMemArray()
         local_x, local_y = get_local_top_left(image, rasterised_shapefile)

@@ -15,15 +15,21 @@ import argparse
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Extracts the signatures from a list of .tif files')
+    parser.add_argument('-c', '--class_field', dest="class_field", action='store', help="Field containing class values")
     parser.add_argument('in_ras', action='store', help="List of tif files to read", nargs="+")
     parser.add_argument("out", action='store', help="Path of the output .csv file")
     args = parser.parse_args()
 
+    print("Creating csv at {}:".format(args.out))
+
     for training_image_file_path in args.in_ras:
+        print("Extracting signatures from {}".format(training_image_file_path))
         training_image_folder, training_image_name = os.path.split(training_image_file_path)
         training_image_name = training_image_name[:-4]  # Strip the file extension
         shape_path = os.path.join(training_image_folder, training_image_name, training_image_name + '.shp')
-        this_training_data, this_classes = pc.get_training_data(training_image_file_path, shape_path)
+        print("Image path: {}\nShape path: {}".format(training_image_file_path, shape_path))
+        this_training_data, this_classes = pc.get_training_data(training_image_file_path, shape_path,
+                                                                attribute=args.class_field)
 
         sigs=np.vstack((this_classes, this_training_data.T))
 

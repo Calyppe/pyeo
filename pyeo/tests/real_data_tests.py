@@ -95,6 +95,14 @@ def test_old_format_google_cloud_dl():
         assert os.path.exists("test_outputs/google_data/{}".format(id))
 
 
+def test_signature_extraction():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    features, classes = pyeo.get_training_data("test_data/KENYA_CHERANGANY_20170313_20170112_001.tif",
+                           "test_data/KENYA_CHERANGANY_20170313_20170112_001")
+    assert features.shape[0] == 8
+    assert classes.shape[1] > 0
+
+
 def test_mask_buffering():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     test_masks = [r"test_data/buffered_masks/20180103T172709.msk",
