@@ -206,7 +206,7 @@ Machine learning functions
 
  .. autofunction:: reshape_prob_out_to_raster
 
- .. autofunction:: create_trained_model
+ .. autofunction:: create_trained_model_from_images
 
  .. autofunction:: create_model_for_region
 

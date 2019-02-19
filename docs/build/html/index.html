@@ -518,7 +518,7 @@ TODO: This has gotten very hairy; rewrite when you update this to take generic m
 
 <dl class="function">
 <dt id="pyeo.core.create_trained_model">
-<code class="descclassname">pyeo.core.</code><code class="descname">create_trained_model</code><span class="sig-paren">(</span><em>training_image_file_paths</em>, <em>cross_val_repeats=5</em>, <em>attribute='CODE'</em><span class="sig-paren">)</span><a class="headerlink" href="#pyeo.core.create_trained_model" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">pyeo.core.</code><code class="descname">create_trained_model_from_images</code><span class="sig-paren">(</span><em>training_image_file_paths</em>, <em>cross_val_repeats=5</em>, <em>attribute='CODE'</em><span class="sig-paren">)</span><a class="headerlink" href="#pyeo.core.create_trained_model" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a trained random forest model from the training data. This
 assumes that image and model are in the same directory, with a shapefile.
 Give training_image_path a path to a list of .tif files. See spec in the R drive for data structure.

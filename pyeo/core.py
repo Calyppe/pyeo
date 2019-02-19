@@ -75,6 +75,10 @@ class FMaskException(ForestSentinelException):
     pass
 
 
+DEFAULT_MODEL = ens.ExtraTreesClassifier(bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
+                                     min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
+
+
 def sent2_query(user, passwd, geojsonfile, start_date, end_date, cloud=50):
     """
 
@@ -723,8 +727,6 @@ def get_image_acquisition_time(image_name):
         return None
 
 
-
-
 def get_preceding_image_path(target_image_name, search_dir):
     """Gets the path to the image in search_dir preceding the image called image_name"""
     target_time = get_image_acquisition_time(target_image_name)
@@ -734,7 +736,6 @@ def get_preceding_image_path(target_image_name, search_dir):
         if accq_time < target_time:   # If this image is older than the target image, return it.
             return os.path.join(search_dir, image_path)
     raise FileNotFoundError("No image older than {}".format(target_image_name))
-
 
 
 def open_dataset_from_safe(safe_file_path, band, resolution = "10m"):
@@ -1808,11 +1809,12 @@ def reshape_prob_out_to_raster(probs, width, height):
     return image_array
 
 
-def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attribute="CODE"):
+def create_trained_model_from_images(training_image_file_paths, model = DEFAULT_MODEL, cross_val_repeats = 5, attribute="CODE"):
     """Returns a trained random forest model from the training data. This
     assumes that image and model are in the same directory, with a shapefile.
     Give training_image_path a path to a list of .tif files. See spec in the R drive for data structure.
-    At present, the model is an ExtraTreesClassifier arrived at by tpot; see tpot_classifier_kenya -> tpot 1)"""
+    If passed, model should be a class that provides a "fit" function
+    At present, the default model is an ExtraTreesClassifier arrived at by tpot; see tpot_classifier_kenya -> tpot 1)"""
     # This could be optimised by pre-allocating the training array. but not now.
     learning_data = None
     classes = None
@@ -1827,8 +1829,23 @@ def create_trained_model(training_image_file_paths, cross_val_repeats = 5, attri
         else:
             learning_data = np.append(learning_data, this_training_data, 0)
             classes = np.append(classes, this_classes)
-    model = ens.ExtraTreesClassifier(bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
-                                     min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
+    model.fit(learning_data, classes)
+    scores = cross_val_score(model, learning_data, classes, cv=cross_val_repeats)
+    return model, scores
+
+
+def create_trained_model_from_csv(csv_path, model = DEFAULT_MODEL, cross_val_repeats = 5):
+    """Returns a trained model from a csv of training data; it is expected that the first column will
+    be classses every other column will be features of that class."""
+    with open(csv_path, newline='') as csv_file:
+        reader = csv.reader(csv_file)
+        for row in reader:
+            if learning_data is None:
+                classes = np.ndarray(row[0])
+                learning_data = np.ndarray(row[1:])
+            else:
+                classes.append(row[0])
+                learning_data.append(row[1:])
     model.fit(learning_data, classes)
     scores = cross_val_score(model, learning_data, classes, cv=cross_val_repeats)
     return model, scores
@@ -1838,7 +1855,7 @@ def create_model_for_region(path_to_region, model_out, scores_out, attribute="CO
     """Creates a model based on training data for files in a given region"""
     image_glob = os.path.join(path_to_region, r"*.tif")
     image_list = glob.glob(image_glob)
-    model, scores = create_trained_model(image_list, attribute=attribute)
+    model, scores = create_trained_model_from_images(image_list, attribute=attribute)
     joblib.dump(model, model_out)
     with open(scores_out, 'w') as score_file:
         score_file.write(str(scores))
