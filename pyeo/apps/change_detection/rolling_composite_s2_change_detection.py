@@ -118,6 +118,7 @@ if __name__ == "__main__":
             pyeo.preprocess_sen2_images(composite_l2_image_dir, composite_merged_dir, composite_l1_image_dir,
                                         cloud_certainty_threshold, epsg=epsg, buffer_size=5)
         log.info("Building initial cloud-free composite")
+        # Replace this with pyeo.composite_images_with_mask(image_list, composite_out_path)
         pyeo.composite_directory(composite_merged_dir, composite_dir)
 
     # Query and download all images since last composite
@@ -136,6 +137,8 @@ if __name__ == "__main__":
         log.info("Aggregating layers")
         pyeo.preprocess_sen2_images(l2_image_dir, merged_image_dir, l1_image_dir, cloud_certainty_threshold, epsg=epsg,
                                     buffer_size=5)
+## add NDVI here if needed
+
 
     log.info("Finding most recent composite")
     latest_composite_name = \
@@ -171,7 +174,8 @@ if __name__ == "__main__":
             new_prob_image = os.path.join(probability_image_dir, "prob_{}".format(os.path.basename(new_stack_path)))
             pyeo.classify_image(new_stack_path, model_path, new_class_image, new_prob_image, num_chunks=10,
                                 skip_existing=True, apply_mask=True)
-
+ # Validation for classification
+# generating masks
         # Build new composite
         if args.do_update or do_all:
             log.info("Updating composite")

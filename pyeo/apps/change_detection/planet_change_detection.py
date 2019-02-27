@@ -1,4 +1,6 @@
-import core as pyeo
+import os, sys
+sys.path.insert(0, os.path.abspath(os.path.join(__file__, '..', '..', '..', '..')))
+from pyeo import core as pyeo
 import argparse
 import configparser
 import os
@@ -12,12 +14,15 @@ args = parser.parse_args()
 
 conf = configparser.ConfigParser()
 conf.read(args.config_path)
-api_key_path = conf['planet']['api_key_location']
-project_root = conf['planet_change_detection']['root_dir']
-aoi_path = conf['planet_change_detection']['aoi_path']
-date_1 = conf['planet_change_detection']['image_1_date']
-date_2 = conf['planet_change_detection']['image_2_date']
-log_path = conf['planet_change_detection']['log_path']
+api_key_path = conf['planet']['api_key']
+project_root = conf['planet']['root_dir']
+aoi_path = conf['planet']['aoi_path']
+start_time = conf['planet']['start_date']
+end_time = conf['planet']['end_date']
+log_path = conf['planet']['log_path']
+model_path = conf['planet']['model']
+
+
 
 pyeo.create_file_structure(project_root)
 log = pyeo.init_log(log_path)
@@ -27,17 +32,23 @@ stacked_image_path = os.path.join(project_root, r"images/stacked")
 catagorised_image_path = os.path.join(project_root, r"output/categories")
 probability_image_path = os.path.join(project_root, r"output/probabilities")
 
-api_key = pyeo.load_api_key(api_key_path)
+api_key = api_key_path  # For now
 
 # Download two images
 
-pyeo.download_planet_image_on_day(aoi_path, date_1, planet_image_path, api_key)
-pyeo.download_planet_image_on_day(aoi_path, date_2, planet_image_path, api_key)
+pyeo.planet_query(aoi_path, start_time, end_time, out_path=planet_image_path,
+                  api_key=api_key_path, item_type = "PSScene4Band" , search_name="auto", asset_type="analytic", threads=5)
+#image_1_path = pyeo.download_planet_image_on_day(aoi_path, date_1, planet_image_path, api_key)
+#image_2_path = pyeo.download_planet_image_on_day(aoi_path, date_2, planet_image_path, api_key)
 
 # Save RGB
 
 
 # Do classification
+
+# stacked_image_path == "somewhere"
+# stacked_image_path = pyeo.stack_images([image_1_path, image_2_path], stacked_image_path)
+# pyeo.classify_image(stacked_image_path, model_path=model_path)
 
 # Do the imshow transitive closure trick
 

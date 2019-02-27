@@ -1,3 +1,4 @@
+# if any import error occur, create a new enviroment using: conda env create --file environment.yml --name eoenv
 import pdb
 
 import os
@@ -338,6 +339,7 @@ def download_planet_image_on_day(aoi_path, date, out_path, api_key, item_type="P
         planet_query(aoi_path, start_time, end_time, out_path, api_key, item_type, search_name, asset_type, threads)
     except IndexError:
         log.warning("IndexError exception; likely no imagery available for chosen date")
+        raise IndexError
 
 
 def planet_query(aoi_path, start_date, end_date, out_path, api_key, item_type="PSScene4Band", search_name="auto",
