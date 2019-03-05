@@ -98,13 +98,13 @@ def sent2_query(user, passwd, geojsonfile, start_date, end_date, cloud=50):
              password for hub
 
     geojsonfile : string
-                  AOI polygon of interest in EPSG 4326
+                  Path to a geojson containing the AOI polygon of interest in EPSG 4326
 
     start_date : string
-                 date of beginning of search
+                 date of beginning of search in the format yyyymmdd (ex. 20190201)
 
     end_date : string
-               date of end of search
+               date of end of search in the format yyyymmdd
 
     cloud : string (optional)
             include a cloud filter in the search
@@ -125,7 +125,18 @@ def sent2_query(user, passwd, geojsonfile, start_date, end_date, cloud=50):
 
 def init_log(log_path):
     """Sets up the log format and log handlers; one for stdout and to write to a file, 'log_path'.
-     Returns the log for the calling script"""
+     Returns the log for the calling script
+     Notes
+     -----
+     Make sure you have permissions for the folder containing log_path
+
+     Parameters
+     ----------
+
+     log_path : filepath
+                Path to the location of a log file. It will be appended to it it exists, and created if it does not.
+
+    """
     logging.basicConfig(format="%(asctime)s: %(levelname)s: %(message)s")
     formatter = logging.Formatter("%(asctime)s: %(levelname)s: %(message)s")
     log = logging.getLogger(__name__)
@@ -139,7 +150,30 @@ def init_log(log_path):
 
 
 def create_file_structure(root):
-    """Creates the file structure if it doesn't exist already"""
+    """Creates a standard file structure for Pyeo applications.
+    Notes
+    -----
+    Build the following file structure:
+    [root]
+        images
+            L1
+            L2
+            merged
+            stacked
+        composite
+            L1
+            L2
+            merged
+        output
+            categories
+            probabilites
+
+    Parameters
+    ----------
+    root : filepath
+        Filepath to the existsing directory where the project is to be created (usually named for the AOI)
+
+    """
     os.chdir(root)
     dirs = [
         "images/",
@@ -147,7 +181,6 @@ def create_file_structure(root):
         "images/L2/",
         "images/merged/",
         "images/stacked/",
-        "images/planet/",
         "composite/",
         "composite/L1",
         "composite/L2",
@@ -155,9 +188,6 @@ def create_file_structure(root):
         "output/",
         "output/categories",
         "output/probabilities",
-        "output/report_image",
-        "output/display_images",
-        "log/"
     ]
     for dir in dirs:
         try:
@@ -176,7 +206,26 @@ def read_aoi(aoi_path):
 
 
 def check_for_new_s2_data(aoi_path, aoi_image_dir, conf):
-    """Checks the S2 API for new data; if it's there, return the result"""
+    """Returns a dict from Sentinelhub containing references for (aoi) accquired between the timestamp
+    of the latest image in aoi_image_dir and now.
+
+    Parameters
+    ----------
+    aoi_path : filepath
+        Filepath to a geojson containing a polygon of the AOI
+    aoi_image_dir : filepath
+        Filepath to the directory containing sentinel 2 imagery for the AOI
+    conf : dict
+        A configuration dict containing the user and password for the Copernicus hub in the following format:
+        conf['sent_2']['user'] = username
+        conf['sent_2']['pass'] = password
+
+    Notes
+    -----
+    Uses the regex r"\d{8}T\d{6}" to find a sentinel 2 timestamp in aoi_image_dir.
+    Today's date comes from datetime.today()
+
+    """
     # TODO: This isn't breaking properly on existing imagery
     # TODO: In fact, just clean this up completely, it's a bloody mess.
     # set up API for query
@@ -724,8 +773,6 @@ def get_image_acquisition_time(image_name):
         return None
 
 
-
-
 def get_preceding_image_path(target_image_name, search_dir):
     """Gets the path to the image in search_dir preceding the image called image_name"""
     target_time = get_image_acquisition_time(target_image_name)
@@ -738,14 +785,12 @@ def get_preceding_image_path(target_image_name, search_dir):
     raise FileNotFoundError("No image older than {}".format(target_image_name))
 
 
-
 def is_tif(image_string):
     """Returns True if image ends with .tif"""
     if image_string.endswith(".tif"):
         return True
     else:
         return False
-
 
 
 def open_dataset_from_safe(safe_file_path, band, resolution = "10m"):
@@ -1640,14 +1685,23 @@ def resample_image_in_place(image_path, new_res):
         shutil.move(temp_image, image_path)
 
 
-def apply_array_image_mask(array, mask, fill_value=0):
-    """Applies a mask of (y,x) to an image array of (bands, y, x). Replaces any masked pixels with fill_value"""
+def apply_array_image_mask(array, mask, fill_value=0, num_chunks = 1):
+    """Applies a mask of (y,x) to an image array of (bands, y, x). Replaces any masked pixels with fill_value
+    TODO: Write test"""
+    log = logging.getLogger(__name__)
     if array.ndim == 2:
         band_count = 1
     else:
         band_count = array.shape[0]
-    stacked_mask = np.stack([mask]*band_count, axis=0)
-    return np.where(stacked_mask == 1, array, fill_value)
+    out_array = None
+    for array_chunk, mask_chunk in zip(np.array_split(array, num_chunks, axis=2), np.array_split(mask, num_chunks, axis=1)):
+        stacked_chunk = np.stack([mask_chunk]*band_count, axis=0)
+        if out_array is not None:
+            out_array = np.concatenate([out_array, np.where(stacked_chunk == 1, array_chunk, fill_value)], axis=2)
+        else:
+            out_array = np.where(stacked_chunk == 1, array_chunk, fill_value)
+    log.info("Mask applied, out_array shape: {}".format(out_array.shape))
+    return out_array
 
 
 def classify_image(image_path, model_path, class_out_path, prob_out_path=None,
@@ -1689,7 +1743,7 @@ def classify_image(image_path, model_path, class_out_path, prob_out_path=None,
         log.info("Applying mask at {}".format(mask_path))
         mask = gdal.Open(mask_path)
         mask_array = mask.GetVirtualMemArray()
-        image_array = apply_array_image_mask(image_array, mask_array)
+        image_array = apply_array_image_mask(image_array, mask_array, num_chunks=num_chunks)
         mask_array = None
         mask = None
 
@@ -1868,6 +1922,7 @@ def create_model_for_region(path_to_region, model_out, scores_out, attribute="CO
 
 
 def create_model_from_signatures(sig_csv_path, model_out):
+    """Given a csv file of where the first column is signatures"""
     model = ens.ExtraTreesClassifier(bootstrap=False, criterion="gini", max_features=0.55, min_samples_leaf=2,
                                      min_samples_split=16, n_estimators=100, n_jobs=4, class_weight='balanced')
     data = np.loadtxt(sig_csv_path, delimiter=",").T
