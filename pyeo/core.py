@@ -21,6 +21,7 @@ import sklearn.ensemble as ens
 from sklearn.model_selection import cross_val_score
 from skimage import morphology as morph
 import scipy.sparse as sp
+from sklearn.externals import joblib as sklearn_joblib
 import joblib
 import shutil
 import zipfile
@@ -168,7 +169,7 @@ def create_file_structure(root):
 
 def read_aoi(aoi_path):
     """Opens the geojson file for the aoi. If FeatureCollection, return the first feature."""
-    with open(aoi_path ,'r') as aoi_fp:
+    with open(aoi_path, 'r') as aoi_fp:
         aoi_dict = json.load(aoi_fp)
         if aoi_dict["type"] == "FeatureCollection":
             aoi_dict = aoi_dict["features"][0]
@@ -177,8 +178,6 @@ def read_aoi(aoi_path):
 
 def check_for_new_s2_data(aoi_path, aoi_image_dir, conf):
     """Checks the S2 API for new data; if it's there, return the result"""
-    # TODO: This isn't breaking properly on existing imagery
-    # TODO: In fact, just clean this up completely, it's a bloody mess.
     # set up API for query
     log = logging.getLogger(__name__)
     user = conf['sent_2']['user']
@@ -731,11 +730,21 @@ def get_preceding_image_path(target_image_name, search_dir):
     """Gets the path to the image in search_dir preceding the image called image_name"""
     target_time = get_image_acquisition_time(target_image_name)
     image_paths = sort_by_timestamp(os.listdir(search_dir), recent_first=True) # Sort image list newest first
+    image_paths = filter(is_tif, image_paths)
     for image_path in image_paths:   # Walk through newest to oldest
         accq_time = get_image_acquisition_time(image_path)   # Get this image time
         if accq_time < target_time:   # If this image is older than the target image, return it.
             return os.path.join(search_dir, image_path)
     raise FileNotFoundError("No image older than {}".format(target_image_name))
+
+
+
+def is_tif(image_string):
+    """Returns True if image ends with .tif"""
+    if image_string.endswith(".tif"):
+        return True
+    else:
+        return False
 
 
 
@@ -843,12 +852,12 @@ def stack_image_with_composite(image_path, composite_path, out_dir, create_combi
     tile = get_sen_2_image_tile(image_path)
     out_filename = "composite_{}_{}_{}.tif".format(tile, composite_timestamp, image_timestamp)
     out_path = os.path.join(out_dir, out_filename)
-    if os.path.exists(out_path) and skip_if_exists:
-        log.info("{} exists, skipping".format(out_path))
+    out_mask_path = out_path.rsplit('.')[0] + ".msk"
+    if os.path.exists(out_path) and os.path.exists(out_mask_path) and skip_if_exists:
+        log.info("{} and mask exists, skipping".format(out_path))
         return out_path
-    stack_images([composite_path, image_path], out_path)
+    stack_images([composite_path, image_path], out_path, geometry_mode="intersect")
     if create_combined_mask:
-        out_mask_path = out_path.rsplit('.')[0] + ".msk"
         image_mask_path = get_mask_path(image_path)
         comp_mask_path = get_mask_path(composite_path)
         combine_masks([comp_mask_path, image_mask_path], out_mask_path, combination_func="and", geometry_func="intersect")
@@ -924,8 +933,8 @@ def stack_images(raster_paths, out_raster_path,
     projection = rasters[0].GetProjection()
     in_gt = rasters[0].GetGeoTransform()
     x_res = in_gt[1]
-    y_res = in_gt[5]*-1   # Y resolution in agt is -ve for Maths reasons
-    combined_polygons = align_bounds_to_whole_number(get_combined_polygon(rasters, geometry_mode))
+    y_res = in_gt[5]*-1   # Y resolution in affine geotransform is -ve for Maths reasons
+    combined_polygons = get_combined_polygon(rasters, geometry_mode)
 
     # Creating a new gdal object
     out_raster = create_new_image_from_polygon(combined_polygons, out_raster_path, x_res, y_res,
@@ -985,9 +994,9 @@ def mosaic_images(raster_paths, out_raster_file, format="GTiff", datatype=gdal.G
     in_gt = rasters[0].GetGeoTransform()
     x_res = in_gt[1]
     y_res = in_gt[5] * -1  # Y resolution in agt is -ve for Maths reasons
-    combined_polyon = align_bounds_to_whole_number(get_combined_polygon(rasters, geometry_mode='union'))
+    combined_polygon = align_bounds_to_whole_number(get_combined_polygon(rasters, geometry_mode='union'))
     layers = rasters[0].RasterCount
-    out_raster = create_new_image_from_polygon(combined_polyon, out_raster_file, x_res, y_res, layers,
+    out_raster = create_new_image_from_polygon(combined_polygon, out_raster_file, x_res, y_res, layers,
                                                projection, format, datatype)
     log.info("New empty image created at {}".format(out_raster_file))
     out_raster_array = out_raster.GetVirtualMemArray(eAccess=gdal.GF_Write)
@@ -1029,7 +1038,8 @@ def composite_images_with_mask(in_raster_path_list, composite_out_path, format="
     log.info("Creating composite at {}".format(composite_out_path))
     log.info("Composite info: x_res: {}, y_res: {}, {} bands, datatype: {}, projection: {}"
              .format(x_res, y_res, n_bands, datatype, projection))
-    out_bounds = align_bounds_to_whole_number(get_poly_bounding_rect(get_combined_polygon(in_raster_list, geometry_mode="union")))
+    out_bounds = align_bounds_to_whole_number(get_poly_bounding_rect(get_combined_polygon(in_raster_list,
+                                                                                          geometry_mode="union")))
     composite_image = create_new_image_from_polygon(out_bounds, composite_out_path, x_res, y_res, n_bands,
                                                     projection, format, datatype)
     output_array = composite_image.GetVirtualMemArray(eAccess=gdal.gdalconst.GF_Write)
@@ -1043,7 +1053,7 @@ def composite_images_with_mask(in_raster_path_list, composite_out_path, format="
 
         # Get a view of in_raster according to output_array
         log.info("Adding {} to composite".format(in_raster_path_list[i]))
-        in_bounds = get_raster_bounds(in_raster)
+        in_bounds = align_bounds_to_whole_number(get_raster_bounds(in_raster))
         x_min, x_max, y_min, y_max = pixel_bounds_from_polygon(composite_image, in_bounds)
         output_view = output_array[:, y_min:y_max, x_min:x_max]
 
@@ -1107,7 +1117,7 @@ def composite_directory(image_dir, composite_out_dir, format="GTiff"):
     log = logging.getLogger(__name__)
     log.info("Compositing {}".format(image_dir))
     sorted_image_paths = [os.path.join(image_dir, image_name) for image_name
-                          in sort_by_timestamp(os.listdir(image_dir), recent_first=False)
+                          in sort_by_timestamp(os.listdir(image_dir), recent_first=False) # Let's think about this
                           if image_name.endswith(".tif")]
     last_timestamp = get_sen_2_image_timestamp(os.path.basename(sorted_image_paths[-1]))
     composite_out_path = os.path.join(composite_out_dir, "composite_{}.tif".format(last_timestamp))
@@ -1213,8 +1223,8 @@ def point_to_pixel_coordinates(raster, point, oob_fail=False):
         x_geo = point.GetX()
         y_geo = point.GetY()
     gt = raster.GetGeoTransform()
-    x_pixel = int(np.floor((x_geo - gt[0])/gt[1]))
-    y_pixel = int(np.floor((y_geo - gt[3])/gt[5]))  # y resolution is -ve
+    x_pixel = int(np.floor((x_geo - floor_to_resolution(gt[0], gt[1]))/gt[1]))
+    y_pixel = int(np.floor((y_geo - floor_to_resolution(gt[3], gt[5]*-1))/gt[5]))  # y resolution is -ve
     return x_pixel, y_pixel
 
 
@@ -1322,11 +1332,13 @@ def check_overlap(raster, aoi):
 
 
 def get_raster_bounds(raster):
-    """Returns a wkbPolygon geometry with the bounding rectangle of a raster calculate from its geotransform"""
+    """Returns a wkbPolygon geometry with the bounding rectangle of a raster calculated from its geotransform"""
     raster_bounds = ogr.Geometry(ogr.wkbLinearRing)
     geotrans = raster.GetGeoTransform()
-    top_left_x = geotrans[0]
-    top_left_y = geotrans[3]
+    # We can't rely on the top-left coord being whole numbers any more, since images may have been reprojected
+    # So we floor to the resolution of the geotransform maybe?
+    top_left_x = floor_to_resolution(geotrans[0], geotrans[1])
+    top_left_y = floor_to_resolution(geotrans[3], geotrans[5]*-1)
     width = geotrans[1]*raster.RasterXSize
     height = geotrans[5]*raster.RasterYSize * -1  # RasterYSize is +ve, but geotransform is -ve so this should go good
     raster_bounds.AddPoint(top_left_x, top_left_y)
@@ -1337,6 +1349,11 @@ def get_raster_bounds(raster):
     bounds_poly = ogr.Geometry(ogr.wkbPolygon)
     bounds_poly.AddGeometry(raster_bounds)
     return bounds_poly
+
+
+def floor_to_resolution(input, resolution):
+    """Returns input rounded DOWN to the nearest multiple of resolution."""
+    return input - (input%resolution)
 
 
 def get_raster_size(raster):
@@ -1655,11 +1672,18 @@ def classify_image(image_path, model_path, class_out_path, prob_out_path=None,
         log.info("No chunk size given, attempting autochunk.")
         num_chunks = autochunk(image)
         log.info("Autochunk to {} chunks".format(num_chunks))
-    model = joblib.load(model_path)
+    try:
+        model = sklearn_joblib.load(model_path)
+    except KeyError:
+        log.warning("Sklearn joblib import failed,trying generic joblib")
+        model = joblib.load(model_path)
     class_out_image = create_matching_dataset(image, class_out_path, format=out_type, datatype=gdal.GDT_Byte)
     log.info("Created classification image file: {}".format(class_out_path))
     if prob_out_path:
-        log.info("n classes in the model: {}".format(model.n_classes_))
+        try:
+            log.info("n classes in the model: {}".format(model.n_classes_))
+        except AttributeError:
+            log.warning("Model has no n_classes_ attribute (known issue with GridSearch)")
         prob_out_image = create_matching_dataset(image, prob_out_path, bands=model.n_classes_, datatype=gdal.GDT_Float32)
         log.info("Created probability image file: {}".format(prob_out_path))
     model.n_cores = -1
