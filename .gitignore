@@ -102,6 +102,7 @@ ENV/
 
 # Pycharm
 .idea/*
+pyeo/.idea/*
 
 # Kate
 **.kate-swp
@@ -117,3 +118,4 @@ ENV/
 /pyeo/tests/*.img*
 /pyeo/tests/*.vrt
 **.zip
+
