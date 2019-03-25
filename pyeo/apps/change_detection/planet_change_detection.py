@@ -45,9 +45,11 @@ pyeo.planet_query(aoi_path, start_time, end_time, out_path=planet_image_path,
 
 
 # Do classification
+images_to_stack = [os.path.join(dirpath,f)
+                       for dirpath, dirnames, files in os.walk(planet_image_path)
+                       for f in files if f.endswith('.tif')]
 
-# stacked_image_path == "somewhere"
-# stacked_image_path = pyeo.stack_images([image_1_path, image_2_path], stacked_image_path)
+stacked_image_path = pyeo.stack_images(images_to_stack, stacked_image_path)
 # pyeo.classify_image(stacked_image_path, model_path=model_path)
 
 # Do the imshow transitive closure trick

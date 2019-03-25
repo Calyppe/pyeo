@@ -771,6 +771,8 @@ def preprocess_sen2_images(l2_dir, out_dir, l1_dir, cloud_threshold=60, buffer_s
             create_mask_from_sen2cor_and_fmask(l1_safe_file, l2_safe_file, mask_path, buffer_size=buffer_size)
             log.info("Cloudmask created")
 
+
+
             out_path = os.path.join(out_dir, os.path.basename(temp_path))
             out_mask_path = os.path.join(out_dir, os.path.basename(mask_path))
 
