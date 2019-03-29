@@ -1638,6 +1638,33 @@ def resample_image_in_place(image_path, new_res):
         shutil.move(temp_image, image_path)
 
 
+def create_masked_image(image_path, mask_path, out_path, fill_value=0):
+    """Creates an raster at out_path consisting of image_path, masked with mask_path.
+    Images will not need to have same extent. Will not mask outside of mask_path extent."""
+    in_image = gdal.Open(image_path)
+    out_image = create_matching_dataset(in_image, out_path)
+    mask_image = gdal.Open(mask_path)
+    combined_polygon = align_bounds_to_whole_number(get_combined_polygon([in_image, mask_image], "intersect"))
+    mask_x_min, mask_x_max, mask_y_min, mask_y_max = pixel_bounds_from_polygon(mask_image, combined_polygon)
+    in_x_min, in_x_max, in_y_min, in_y_max = pixel_bounds_from_polygon(in_image, combined_polygon)
+
+    mask_array = mask_image.GetVirtualMemArray()
+    image_array = in_image.GetVirtualMemArray()
+    out_array = out_image.GetVirtualMemArray(eAccess=gdal.GA_Update)
+
+    mask_view = mask_array[mask_y_min: mask_y_max, mask_x_min: mask_x_max]
+    image_view = image_array[..., in_y_min: in_y_max, in_x_min: in_x_max]
+    out_view = out_array[..., in_y_min: in_y_max, in_x_min: in_x_max]
+
+    out_view[mask_view] = image_view
+
+    out_view, mask_view, image_view = [None]*3
+    out_array, mask_array, image_array = [None]*3
+    out_image, mask_image, in_image = [None]*3
+
+    return image_path
+
+
 def apply_array_image_mask(array, mask, fill_value=0):
     """Applies a mask of (y,x) to an image array of (bands, y, x). Replaces any masked pixels with fill_value"""
     if array.ndim == 2:
