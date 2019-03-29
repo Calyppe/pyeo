@@ -1641,6 +1641,8 @@ def resample_image_in_place(image_path, new_res):
 def create_masked_image(image_path, mask_path, out_path, fill_value=0):
     """Creates an raster at out_path consisting of image_path, masked with mask_path.
     Images will not need to have same extent. Will not mask outside of mask_path extent."""
+    log = logging.getLogger(__name__)
+    log.info('Starting to mask %s with %s', image_path, mask_path)
     in_image = gdal.Open(image_path)
     out_image = create_matching_dataset(in_image, out_path)
     mask_image = gdal.Open(mask_path)
@@ -1661,6 +1663,8 @@ def create_masked_image(image_path, mask_path, out_path, fill_value=0):
     out_view, mask_view, image_view = [None]*3
     out_array, mask_array, image_array = [None]*3
     out_image, mask_image, in_image = [None]*3
+
+    log.info('Masking completed and new image located here: %s', image_path)
 
     return image_path
 
