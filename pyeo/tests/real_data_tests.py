@@ -408,12 +408,26 @@ def test_raster_sum():
 
 def test_create_masked_image():
     test_dir = "/media/ubuntu/data_archive/F2020/Kenya/outputs/classifications/mt_elgon"
-    test_pattern = '*_T37MDR_*_rcl.tif'
-    test_mask =
+    test_pattern = '*_sum2018.tif'
+    test_mask = '/media/ubuntu/data_archive/F2020/Kenya/SLEEK_map/2014_overlay_recode_epsg21037.tif'
+    test_img_list = glob.glob(os.path.join(test_dir, test_pattern))
+    out_img_paths = []
+    for i, img in enumerate(test_img_list):
+        pth, fn = os.path.split(img)
+        n, fmt = fn.split('.', 2)
+        test_out_path = os.path.join(pth, (n+'_masked.'+fmt))
+        masked_img = pyeo.create_masked_image(img, test_mask, test_out_path)
+        out_img_paths.append(masked_img)
+
+    return out_img_paths
+
+
+
 
 if __name__ == "__main__":
     print(sys.path)
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     log = pyeo.init_log("test_log.log")
-    test_raster_reclass_directory()
+    # test_raster_reclass_directory()
     # test_raster_sum()
+    masked_img_list = test_create_masked_image()
