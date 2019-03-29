@@ -406,6 +406,11 @@ def test_raster_sum():
     pyeo.raster_sum(inRstList=test_image_list, outFn=out_fn)
 
 
+def test_create_masked_image():
+    test_dir = "/media/ubuntu/data_archive/F2020/Kenya/outputs/classifications/mt_elgon"
+    test_pattern = '*_T37MDR_*_rcl.tif'
+    test_mask =
+
 if __name__ == "__main__":
     print(sys.path)
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
