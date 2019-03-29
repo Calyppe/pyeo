@@ -780,8 +780,6 @@ def preprocess_sen2_images(l2_dir, out_dir, l1_dir, cloud_threshold=60, buffer_s
             create_mask_from_sen2cor_and_fmask(l1_safe_file, l2_safe_file, mask_path, buffer_size=buffer_size)
             log.info("Cloudmask created")
 
-
-
             out_path = os.path.join(out_dir, os.path.basename(temp_path))
             out_mask_path = os.path.join(out_dir, os.path.basename(mask_path))
 
@@ -1924,3 +1922,94 @@ def get_local_top_left(raster1, raster2):
     """Gets the top-left corner of raster1 in the array of raster 2; WRITE A TEST FOR THIS"""
     inner_gt = raster2.GetGeoTransform()
     return point_to_pixel_coordinates(raster1, [inner_gt[0], inner_gt[3]])
+
+
+def getallinfo(g):
+    (x_min, pixel_width, rotation, y_max, rotation, pixel_height) = g.GetGeoTransform()
+    rows = g.RasterYSize
+    cols = g.RasterXSize
+    bands = g.RasterCount
+    x_max = (cols * pixel_width) + x_min
+    y_min = y_max + (rows * pixel_height)
+    return x_min, pixel_width, rotation, y_max, rotation, pixel_height, rows, cols, bands, x_max, y_min
+
+
+def clipShp(input_raster, shpfile_path, output_fldr):
+    (x_min, pixel_width, rotation, y_max, rotation, pixel_height, rows, cols, bands, x_max, y_min) = getallinfo(
+        input_raster)
+
+    #   print getallinfo(input_raster)
+    clipfile = os.path.join(output_fldr, 'outline_clip.shp')
+    remove_exist(clipfile)
+    print('The clipped shapefile to the extent of the raster, resultant shp is saved in ' + clipfile)
+    os.system('ogr2ogr -clipdst ' + str(x_min) + ' ' + str(y_min) + ' ' + str(x_max) + ' ' + str(
+        y_max) + ' ' + clipfile + ' ' + shpfile_path)
+    return clipfile
+
+
+def remove_exist(filename):
+    try:
+        os.remove(filename)
+    except OSError as e:  # this would be "except OSError, e:" before Python 2.6
+        if e.errno != errno.ENOENT:  # errno.ENOENT = no such file or directory
+            raise  # re-raise exception if a different error occurred
+
+
+def cal_ratio(alldata, classnumber):
+    results = []
+    results.append(classnumber)
+    newclass = [num for num in alldata if np.logical_or(num == classnumber, classnumber in num)]
+    results.append(len(newclass))
+    results.append(round(len(newclass) / len(alldata), 6))
+
+    return results
+
+
+def validate_classes_general(inRaster, shpdir, field_name='GRID_CODE', out_fldr=' ', nodata=0):
+    s0data = gdal.Open(inRaster)
+
+    with open(os.path.join(out_fldr, os.path.basename(inRaster)[:-4] + '_' + "validation.csv"), 'w') as fs:
+        writer = csv.writer(fs)
+        writer.writerow(['validateClass', 'PredictedClass', 'number', 'ratio'])
+
+        inshp = shpdir
+
+        print('~validating ... ' + inshp)
+
+        clipfile = clipShp(s0data, inshp, out_fldr)  # clip shp to the extent of the raster
+        print('rasterise the shapefile')
+        (x_min, pixel_width, rotation, y_max, rotation, pixel_height, rows, cols, bands, x_max, y_min) = getallinfo(
+            s0data)
+
+        clipd_shp_rst = os.path.join(out_fldr, 'groundata_raster.tif')
+        remove_exist(clipd_shp_rst)
+
+        os.system('gdal_rasterize -a_nodata 0 -a ' + field_name + ' -ot Float32 -l ' + os.path.basename(
+            clipfile[:-4]) + ' -te ' + str(x_min) + ' ' + str(y_min) + ' ' + str(x_max) + ' ' + str(
+            y_max) + ' -tR ' + str(pixel_width) + ' ' + str(-pixel_height) + ' ' + clipfile + ' ' + clipd_shp_rst)
+        r = gdal.Open(clipd_shp_rst)
+        shp_array1 = r.GetRasterBand(1).ReadAsArray()
+
+        for class_i in np.unique(shp_array1):
+            all_class = np.zeros(shp_array1.shape)
+            all_class[shp_array1 == class_i] = 1  # now the shp only have 0 and 1, 1 are where validating points are
+            bs_array = s0data.GetRasterBand(1).ReadAsArray()  # .astype(np.float)
+            new = all_class * bs_array
+
+            for i in np.unique(new):
+                if i == nodata:
+                    continue  # skip
+                else:
+                    stat = []
+                    stat.append(str(class_i))
+                    testclass = str(i)
+                    stat.append(testclass)
+                    num = len(new[new == i])
+                    stat.append(num)
+                    total_nonnum = len(new[new != 0.])
+                    ratio = round(float(num) / float(total_nonnum), 6)
+                    stat.append(ratio)
+                    writer.writerow(stat)
+                    print(stat)
+            writer.writerow([])
+    fs.close()
