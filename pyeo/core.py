@@ -7,7 +7,7 @@ import datetime as dt
 import glob
 import re
 import configparser
-from sentinelhub import download_safe_format
+
 from botocore.exceptions import ClientError
 from sentinelsat import SentinelAPI, geojson_to_wkt, read_geojson
 import subprocess
@@ -300,6 +300,41 @@ def download_s2_data(new_data, l1_dir, l2_dir, source='scihub', user=None, passw
             raise BadDataSourceExpection
 
 
+def download_safe_format(product_id, folder):
+    """
+    Downloads a sentinel 2 scene from AWS
+    :param product_id: The product ID (the string contining the level, datatake, granule, ect.)
+    :param folder: The folder to save the downloaded scene to
+    """
+    prefix = build_bucket_prefix(product_id)
+
+
+
+def build_bucket_prefix(safe_id, format="aws"):
+    """Returns a path to the imagery in question"""
+    tile_id = get_sen_2_image_tile(safe_id)
+    utm_zone = tile_id[1:3]
+    lat_band = tile_id[3]
+    grid_square = tile_id[4:6]
+    timestamp = get_sen_2_image_timestamp(safe_id)
+    date = dt.datetime.strptime(timestamp, "%Y%m%dT%H%M%S")
+    sequence = 0  #
+
+    if format == "google":
+        object_prefix = r"tiles/{}/{}/{}/{}/".format(
+            utm_zone, lat_band, grid_square, safe_id
+        )
+    elif format == "aws":
+        object_prefix = r"tiles/{}/{}/{}/{}/{}/{}/{}".format(
+            utm_zone, lat_band, grid_square,
+            date.year, date.month, date.day, sequence,
+        )
+    else:
+        raise BadDataSourceExpection
+    return object_prefix
+
+
+
 def download_from_aws_with_rollback(product_id, folder, uuid, user, passwd):
     """Attempts to download product from AWS using product_id; if not found, rolls back to Scihub using uuid"""
     log = logging.getLogger(__file__)
@@ -347,13 +382,7 @@ def download_from_google_cloud(product_ids, out_folder, redownload = False):
         if redownload:
             log.info("Removing {}".format(os.path.join(out_folder, safe_id)))
             shutil.rmtree(os.path.join(out_folder, safe_id))
-        tile_id = get_sen_2_image_tile(safe_id)
-        utm_zone = tile_id[1:3]
-        lat_band = tile_id[3]
-        grid_square = tile_id[4:6]
-        object_prefix = r"tiles/{}/{}/{}/{}/".format(
-            utm_zone, lat_band, grid_square, safe_id
-        )
+        object_prefix = build_bucket_prefix(safe_id)
         object_iter = bucket.list_blobs(prefix=object_prefix, delimiter=None)
         if object_iter.num_results == 0:
             log.error("{} missing from Google Cloud, continuing".format(safe_id))
@@ -366,6 +395,8 @@ def download_from_google_cloud(product_ids, out_folder, redownload = False):
             os.mkdir(os.path.join(os.path.abspath(out_folder), safe_id, "HTML"))
         except FileExistsError:
             pass
+
+
 
 
 # @tenacity.retry(
