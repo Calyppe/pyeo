@@ -98,8 +98,22 @@ def test_old_format_google_cloud_dl():
 
 
 @pytest.mark.webtest
+def test_dl_from_aws():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        shutil.rmtree("test_outputs/aws_data")
+    except FileNotFoundError:
+        pass
+    os.mkdir("test_outputs/aws_data")
+    product_id = "S2B_MSIL1C_20170715T151709_N0205_R125_T18NXH_20170715T151704.SAFE"
+    pyeo.download_from_aws(product_id, "test_outputs/aws_data", has_approved_payment="True")
+    assert os.path.exists("test_outputs/google_data/{}".format(product_id))
+
+
+
+@pytest.mark.webtest
 def test_pair_filter_with_dl():
-    # Pickle this at some point so it down't depend on having a download
+    # Pickle this at some point so it down't depend on having a web connection
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     test_aoi = r"test_data/marque_de_com_really_simple.geojson"
     start = "20170101"

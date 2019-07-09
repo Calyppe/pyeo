@@ -47,6 +47,11 @@ try:
 except ModuleNotFoundError:
     print("Tenacity, Planet and Multiprocessing are required for Planet data downloading")
 
+try:
+    import boto3
+except ModuleNotFoundError:
+    print("Boto3 reqired for AWS download. In addition, you will need an AWS account set up FILL IN DETAILS")
+
 
 class ForestSentinelException(Exception):
     pass
@@ -290,7 +295,7 @@ def download_s2_data(new_data, l1_dir, l2_dir, source='scihub', user=None, passw
                 download_from_aws_with_rollback(product_id=new_data[image_uuid]['identifier'], folder=out_path,
                                                 uuid=image_uuid, user=user, passwd=passwd)
             else:
-                download_safe_format(product_id=new_data[image_uuid]['identifier'], folder=out_path)
+                download_from_aws(product_id=new_data[image_uuid]['identifier'], folder=out_path)
         elif source=='google':
             download_from_google_cloud([new_data[image_uuid]['identifier']], out_folder=out_path)
         elif source=="scihub":
@@ -300,13 +305,25 @@ def download_s2_data(new_data, l1_dir, l2_dir, source='scihub', user=None, passw
             raise BadDataSourceExpection
 
 
-def download_safe_format(product_id, folder):
+def download_from_aws(product_id, folder, has_approved_payment):
     """
     Downloads a sentinel 2 scene from AWS
     :param product_id: The product ID (the string contining the level, datatake, granule, ect.)
     :param folder: The folder to save the downloaded scene to
     """
+    s3 = boto3.client("s3")
+    data_level = get_sen_2_image_processing_level(product_id).lower()
     prefix = build_bucket_prefix(product_id)
+    objects = s3.list_objects(
+        Bucket = "sentinel-s2-{}".format(data_level),
+        Delimiter = prefix,
+        Prefix = prefix,
+        RequestPayer = has_approved_payment
+    )
+    for object in objects:
+        object_out_path = object.key
+
+
 
 
 
@@ -339,7 +356,7 @@ def download_from_aws_with_rollback(product_id, folder, uuid, user, passwd):
     """Attempts to download product from AWS using product_id; if not found, rolls back to Scihub using uuid"""
     log = logging.getLogger(__file__)
     try:
-        download_safe_format(product_id=product_id, folder=folder)
+        download_from_aws(product_id=product_id, folder=folder)
     except ClientError:
         log.warning("Something wrong with AWS for products id {}; rolling back to Scihub using uuid {}".format(product_id, uuid))
         download_from_scihub(uuid, folder, user, passwd)
@@ -981,6 +998,12 @@ def get_l2_safe_file(image_name, l2_dir):
     safe_glob = "S2[A|B]_MSIL2A_{}_*_{}_*.SAFE".format(timestamp, granule)
     out = glob.glob(os.path.join(l2_dir, safe_glob))[0]
     return out
+
+
+def get_sen_2_image_processing_level(image_name):
+    proc_re = r"L(?:2A|1C)"  # Matches either L2A or L1C
+    proc_result = re.search(proc_re, image_name)
+    return proc_result.group(0)
 
 
 def get_sen_2_image_timestamp(image_name):
