@@ -36,6 +36,15 @@ from sklearn.externals import joblib
 
 gdal.UseExceptions()
 
+def pytest_configure(config):
+        config.addinivalue_line(
+                        "markers", "webtest: mark test to run only when -m webtest somehow"
+                            )
+        config.addinivalue_line(
+                "markers", "slow: mark test to run only when -m runslow somehow"
+                            )
+
+
 
 def setup_module():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -44,7 +53,7 @@ def setup_module():
 
 def load_test_conf():
     test_conf = configparser.ConfigParser()
-    test_conf.read("test_data/test_creds.ini.ignoreme")
+    test_conf.read("test_creds.ini")
     return test_conf
 
 
@@ -105,9 +114,9 @@ def test_dl_from_aws():
     except FileNotFoundError:
         pass
     os.mkdir("test_outputs/aws_data")
-    product_id = "S2B_MSIL1C_20170715T151709_N0205_R125_T18NXH_20170715T151704.SAFE"
-    pyeo.download_from_aws(product_id, "test_outputs/aws_data", has_approved_payment="True")
-    assert os.path.exists("test_outputs/google_data/{}".format(product_id))
+    product_id = "S2B_MSIL2A_20170715T151709_N0205_R125_T18NXH_20170715T151704.SAFE"
+    pyeo.download_from_aws(product_id, "test_outputs/aws_data", has_approved_payment="requester")
+    assert os.path.exists("test_outputs/aws_data/{}".format(product_id))
 
 
 

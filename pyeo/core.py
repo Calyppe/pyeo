@@ -313,18 +313,33 @@ def download_from_aws(product_id, folder, has_approved_payment):
     """
     s3 = boto3.client("s3")
     data_level = get_sen_2_image_processing_level(product_id).lower()
-    prefix = build_bucket_prefix(product_id)
-    objects = s3.list_objects(
-        Bucket = "sentinel-s2-{}".format(data_level),
-        Delimiter = prefix,
+    prefix = build_bucket_prefix(product_id, "aws")
+    bucket = "sentinel-s2-{}".format(data_level)
+    objects = s3.list_objects_v2(
+        Bucket = bucket,
         Prefix = prefix,
         RequestPayer = has_approved_payment
     )
-    for object in objects:
-        object_out_path = object.key
+    if not objects:
+        raise ForestSentinelException
+    safe_dir = os.path.join(folder, product_id)
+    os.mkdir(safe_dir)
+    for tile_object in objects['Contents']:
+        object_local_path = tile_object["Key"].replace(prefix,"").lstrip("/")  # strip the keyi
+        object_out_path = os.path.join(safe_dir, object_local_path)
+        object_out_dir = os.path.dirname(object_out_path)
+        if not os.path.exists(object_out_dir):
+            os.makedirs(object_out_dir)
+        s3.download_file(bucket,tile_object["Key"], object_out_path,
+                 {'RequestPayer':has_approved_payment})
 
 
-
+def place_object_in_safe_hierarchy(safe_folder, object_name):
+    """Puts an object in it's place in ESA's .SAFE format"""
+    data_level = get_sen_2_image_processing_level(safe_folder)
+    if object_name.endswith(".jp2") or object_name.endswith(".tif"):
+        band_regex = r"B\d(?:\d|A)"  # Matches all the band identifiers
+        if re.mi
 
 
 def build_bucket_prefix(safe_id, format="aws"):
