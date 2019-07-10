@@ -8,10 +8,11 @@ import glob
 import re
 import configparser
 from sentinelhub import download_safe_format
+from botocore.exceptions import ClientError
 from sentinelsat import SentinelAPI, geojson_to_wkt, read_geojson
 import subprocess
 import gdal
-from osgeo import ogr, osr
+from osgeo import ogr, osr, gdal_array
 import numpy as np
 import numpy.ma as ma
 import tempfile
@@ -24,6 +25,10 @@ from sklearn.externals import joblib as sklearn_joblib
 import joblib
 import shutil
 import zipfile
+import matplotlib.pyplot as plt
+import itertools
+from functools import lru_cache
+import datetime
 
 import json
 import csv
@@ -72,6 +77,10 @@ class BadDataSourceExpection(ForestSentinelException):
     pass
 
 
+class NoL2DataAvailableException(ForestSentinelException):
+    pass
+
+
 class FMaskException(ForestSentinelException):
     pass
 
@@ -108,6 +117,9 @@ def sent2_query(user, passwd, geojsonfile, start_date, end_date, cloud=50):
 
     cloud : string (optional)
             include a cloud filter in the search
+
+    product : string (optional)
+            Product type for Sentinel 2. Valid values are S2MSI1C and S2MS2Ap
 
 
     """
@@ -166,6 +178,11 @@ def create_file_structure(root):
             pass
 
 
+def validate_config_file(config_path):
+    #TODO: fill
+    pass
+
+
 def read_aoi(aoi_path):
     """Opens the geojson file for the aoi. If FeatureCollection, return the first feature."""
     with open(aoi_path, 'r') as aoi_fp:
@@ -173,29 +190,6 @@ def read_aoi(aoi_path):
         if aoi_dict["type"] == "FeatureCollection":
             aoi_dict = aoi_dict["features"][0]
         return aoi_dict
-
-
-def check_for_new_s2_data(aoi_path, aoi_image_dir, conf):
-    """Checks the S2 API for new data; if it's there, return the result"""
-    # set up API for query
-    log = logging.getLogger(__name__)
-    user = conf['sent_2']['user']
-    password = conf['sent_2']['pass']
-    # Get last downloaded map date
-    file_list = os.listdir(aoi_image_dir)
-    datetime_regex = r"\d{8}T\d{6}"     # Regex that matches an S2 timestamp
-    date_matches = re.finditer(datetime_regex, file_list.__str__())
-    try:
-        dates = [dt.datetime.strptime(date.group(0), '%Y%m%dT%H%M%S') for date in date_matches]
-        last_date = max(dates)
-        # Do the query
-        result = sent2_query(user, password, aoi_path,
-                             last_date.isoformat(timespec='seconds')+'Z',
-                             dt.datetime.today().isoformat(timespec='seconds')+'Z')
-        return result
-    except ValueError:
-        log.error("aoi_image_dir empty, please add a starting image")
-        sys.exit(1)
 
 
 def check_for_s2_data_by_date(aoi_path, start_date, end_date, conf, cloud_cover=50):
@@ -210,31 +204,111 @@ def check_for_s2_data_by_date(aoi_path, start_date, end_date, conf, cloud_cover=
     return result
 
 
-def download_s2_data(new_data, out_folder, l2_dir=None, source='scihub', user=None, passwd=None):
-    """Downloads S2 imagery from AWS, google_cloud or scihub. new_data is a dict from Sentinel_2. If l2_dir is given,
-    will check that directory for existing imagery and skip if exists."""
+def filter_non_matching_s2_data(query_output):
+    """Removes any L2/L1 product that does not have a corresponding L1/L2 data"""
+    # Here be algorithms
+    # A L1 and L2 image are related iff the following fields match:
+    #    Satellite (S2[A|B])
+    #    Intake date (FIRST timestamp)
+    #    Orbit number (Rxxx)
+    #    Granule ID (Txxaaa)
+    # So if we succeviely partition the query, we should get a set of products with either 1 or
+    # 2 entries per granule / timestamp combination
     log = logging.getLogger(__name__)
+    sorted_query = sorted(query_output.values(), key=get_query_granule)
+    granule_groups = {str(key): list(group) for key, group in itertools.groupby(sorted_query, key=get_query_granule)}
+    granule_date_groups = {}
+
+    # Partition as above.
+    # We can probably expand this to arbitrary lengths of queries. If you catch me doing this, please restrain me.
+    for granule, item_list in granule_groups.items():
+        item_list.sort(key=get_query_datatake)
+        granule_date_groups.update(
+            {str(granule)+str(key): list(group) for key, group in itertools.groupby(item_list, key=get_query_datatake)})
+
+    # On debug inspection, turns out sometimes S2 products get replicated. Lets filter those.
+    out_set = {}
+    for key, image_set in granule_date_groups.items():
+        #if sum(1 for image in image_set if get_query_level(image) == "Level-2A") <= 2:
+            #list(filter(lambda x: get_query_level(x) == "Level-2A", image_set)).sort(key=get_query_processing_time)[0].pop()
+        if (sum(1 for image in image_set if get_query_level(image) == "Level-2A") == 1
+        and sum(1 for image in image_set if get_query_level(image) == "Level-1C") == 1):
+            out_set.update({image["uuid"]: image for image in image_set})
+
+    #Now rebuild into uuid:data_object format
+    if len(out_set) == 0:
+        log.error("No L2 data detected for query. Please remove the --download_l2_data flag or request more recent images.")
+        raise NoL2DataAvailableException
+    return out_set
+
+
+def get_query_datatake(query_item):
+    return query_item['beginposition']
+
+
+def get_query_granule(query_item):
+    return query_item["title"].split("_")[5]
+
+
+def get_query_processing_time(query_item):
+    ingestion_string = query_item["title"].split("_")[6]
+    return dt.datetime.strptime(ingestion_string, "%Y%m%dT%H%M%S")
+
+
+def get_query_level(query_item):
+    return query_item["processinglevel"]
+
+
+def get_granule_identifiers(safe_product_id):
+    """Returns the parts of a S2 name that uniquely identify that granulate at a moment in time"""
+    satellite, _, intake_date, _, orbit_number, granule, _ = safe_product_id.split('_')
+    return satellite, intake_date, orbit_number, granule
+
+
+def download_s2_data(new_data, l1_dir, l2_dir, source='scihub', user=None, passwd=None, try_scihub_on_fail=False):
+    """Downloads S2 imagery from AWS, google_cloud or scihub. new_data is a dict from Sentinel_2."""
+    log = logging.getLogger(__name__)
+
     for image_uuid in new_data:
-        l1_path = os.path.join(out_folder, new_data[image_uuid]['identifier'])
-        if check_for_invalid_l1_data(l1_path) == 1:
-            log.info("L1 imagery exists, skipping download")
-            continue
-        if l2_dir:
-            l2_path = os.path.join(l2_dir, new_data[image_uuid]['identifier'].replace("MSIL1C", "MSIL2A")+".SAFE")
-            log.info("Checking {} for existing L2 imagery".format(l2_path))
-            if os.path.isdir(l2_path):
-                log.info("L2 imagery exists, skipping download.")
+
+        if 'L1C' in new_data[image_uuid]['identifier']:
+            out_path = l1_dir
+            if check_for_invalid_l1_data(out_path) == 1:
+                log.info("L1 imagery exists, skipping download")
                 continue
-        log.info("Downloading {} from {}".format(new_data[image_uuid]['identifier'], source))
+        elif 'L2A' in new_data[image_uuid]['identifier']:
+            out_path = l2_dir
+            if check_for_invalid_l2_data(out_path) == 1:
+                log.info("L2 imagery exists, skipping download")
+                continue
+        else:
+            log.error("{} is not a Sentinel 2 product")
+            raise BadDataSourceExpection
+
+        log.info("Downloading {} from {} to {}".format(new_data[image_uuid]['identifier'], source, out_path))
         if source=='aws':
-            download_safe_format(product_id=new_data[image_uuid]['identifier'], folder=out_folder)
+            if try_scihub_on_fail:
+                download_from_aws_with_rollback(product_id=new_data[image_uuid]['identifier'], folder=out_path,
+                                                uuid=image_uuid, user=user, passwd=passwd)
+            else:
+                download_safe_format(product_id=new_data[image_uuid]['identifier'], folder=out_path)
         elif source=='google':
-            download_from_google_cloud([new_data[image_uuid]['identifier']], out_folder=out_folder)
+            download_from_google_cloud([new_data[image_uuid]['identifier']], out_folder=out_path)
         elif source=="scihub":
-            download_from_scihub(image_uuid, out_folder, user, passwd)
+            download_from_scihub(image_uuid, out_path, user, passwd)
         else:
             log.error("Invalid data source; valid values are 'aws', 'google' and 'scihub'")
             raise BadDataSourceExpection
+
+
+def download_from_aws_with_rollback(product_id, folder, uuid, user, passwd):
+    """Attempts to download product from AWS using product_id; if not found, rolls back to Scihub using uuid"""
+    log = logging.getLogger(__file__)
+    try:
+        download_safe_format(product_id=product_id, folder=folder)
+    except ClientError:
+        log.warning("Something wrong with AWS for products id {}; rolling back to Scihub using uuid {}".format(product_id, uuid))
+        download_from_scihub(uuid, folder, user, passwd)
 
 
 def download_from_scihub(product_uuid, out_folder, user, passwd):
@@ -301,7 +375,7 @@ def download_from_google_cloud(product_ids, out_folder, redownload = False):
 #     retry=tenacity.retry_if_exception_type(ServiceUnavailable)
 # )
 def download_blob_from_google(bucket, object_prefix, out_folder, s2_object):
-
+    log = logging.getLogger(__name__)
     blob = bucket.get_blob(s2_object.name)
     object_out_path = os.path.join(
         os.path.abspath(out_folder),
@@ -311,7 +385,6 @@ def download_blob_from_google(bucket, object_prefix, out_folder, s2_object):
     log.info("Downloading from {} to {}".format(s2_object, object_out_path))
     with open(object_out_path, 'w+b') as f:
         blob.download_to_file(f)
-
 
 
 def load_api_key(path_to_api):
@@ -555,7 +628,7 @@ def check_for_invalid_l2_data(l2_SAFE_file, resolution="10m"):
     Retuns 1 if imagery is valid, 0 if not and 2 if not a safe-file"""
     log = logging.getLogger(__name__)
     if not l2_SAFE_file.endswith(".SAFE") or "L2A" not in l2_SAFE_file:
-        log.info("{} is not a valid L2 file")
+        log.info("{} does not exist.".format(l2_SAFE_file))
         return 2
     log.info("Checking {} for incomplete {} imagery".format(l2_SAFE_file, resolution))
     granule_path = r"GRANULE/*/IMG_DATA/R{}/*_B0[8,4,3,2]_*.jp2".format(resolution)
@@ -572,7 +645,7 @@ def check_for_invalid_l1_data(l1_SAFE_file):
     Retuns 1 if imagery is valid, 0 if not and 2 if not a safe-file"""
     log = logging.getLogger(__name__)
     if not l1_SAFE_file.endswith(".SAFE") or "L1C" not in l1_SAFE_file:
-        log.info("{} is not a valid L1 file")
+        log.info("{} does not exist.".format(l1_SAFE_file))
         return 2
     log.info("Checking {} for incomplete imagery".format(l1_SAFE_file))
     granule_path = r"GRANULE/*/IMG_DATA/*_B0[8,4,3,2]_*.jp2"
@@ -644,6 +717,27 @@ def create_matching_dataset(in_dataset, out_path,
     out_dataset.SetGeoTransform(in_dataset.GetGeoTransform())
     out_dataset.SetProjection(in_dataset.GetProjection())
     return out_dataset
+
+
+def save_array_as_image(array, path, geotransform, projection, format = "GTiff"):
+    """Saves a given array as a geospatial image in the format 'format'
+    Array must be gdal format: [bands, y, x]. Returns the gdal object"""
+    driver = gdal.GetDriverByName(format)
+    type_code = gdal_array.NumericTypeCodeToGDALTypeCode(array.dtype)
+    out_dataset = driver.Create(
+        path,
+        xsize=array.shape[2],
+        ysize=array.shape[1],
+        bands=array.shape[0],
+        eType=type_code
+    )
+    out_dataset.SetGeoTransform(geotransform)
+    out_dataset.SetProjection(projection)
+    out_array = out_dataset.GetVirtualMemArray(eAccess=gdal.GA_Update)
+    out_array[...] = array
+    out_array = None
+    out_dataset = None
+    return path
 
 
 def create_new_stacks(image_dir, stack_dir):
@@ -722,10 +816,19 @@ def get_image_acquisition_time(image_name):
         return None
 
 
+def get_change_detection_dates(image_name):
+    """Takes the source filepath and extracts the before_date and after_date dates from in, in that order."""
+    date_regex = r"\d\d\d\d\d\d\d\dT\d\d\d\d\d\d"
+    timestamps = re.findall(date_regex, image_name)
+    date_times = [datetime.datetime.strptime(timestamp, r"%Y%m%dT%H%M%S") for timestamp in timestamps]
+    date_times.sort()
+    return date_times
+
+
 def get_preceding_image_path(target_image_name, search_dir):
     """Gets the path to the image in search_dir preceding the image called image_name"""
     target_time = get_image_acquisition_time(target_image_name)
-    image_paths = sort_by_timestamp(os.listdir(search_dir), recent_first=True) # Sort image list newest first
+    image_paths = sort_by_timestamp(os.listdir(search_dir), recent_first=True)  # Sort image list newest first
     image_paths = filter(is_tif, image_paths)
     for image_path in image_paths:   # Walk through newest to oldest
         accq_time = get_image_acquisition_time(image_path)   # Get this image time
@@ -740,6 +843,13 @@ def is_tif(image_string):
         return True
     else:
         return False
+
+
+def get_related_images(target_image_name, project_dir):
+    """Gets the paths of all images related to that one in a project, by timestamp"""
+    timestamp = get_sen_2_image_timestamp(target_image_name)
+    image_glob = r"*{}*".format(timestamp)
+    return glob.glob(image_glob, project_dir)
 
 
 def open_dataset_from_safe(safe_file_path, band, resolution = "10m"):
@@ -835,7 +945,8 @@ def stack_old_and_new_images(old_image_path, new_image_path, out_dir, create_com
         log.error("Tiles  of the two images do not match. Aborted.")
 
 
-def stack_image_with_composite(image_path, composite_path, out_dir, create_combined_mask=True, skip_if_exists=True):
+def stack_image_with_composite(image_path, composite_path, out_dir, create_combined_mask=True, skip_if_exists=True,
+                               invert_stack = False):
     """Stacks an image with a cloud-free composite"""
     log = logging.getLogger(__name__)
     log.info("Stacking {} with composite {}".format(image_path, composite_path))
@@ -848,7 +959,10 @@ def stack_image_with_composite(image_path, composite_path, out_dir, create_combi
     if os.path.exists(out_path) and os.path.exists(out_mask_path) and skip_if_exists:
         log.info("{} and mask exists, skipping".format(out_path))
         return out_path
-    stack_images([composite_path, image_path], out_path, geometry_mode="intersect")
+    to_be_stacked = [composite_path, image_path]
+    if invert_stack:
+        to_be_stacked.reverse()
+    stack_images(to_be_stacked, out_path, geometry_mode="intersect")
     if create_combined_mask:
         image_mask_path = get_mask_path(image_path)
         comp_mask_path = get_mask_path(composite_path)
@@ -867,7 +981,7 @@ def get_l1_safe_file(image_name, l1_dir):
 
 
 def get_l2_safe_file(image_name, l2_dir):
-    """Returns the path to the L1 .SAFE directory of image. Gets from granule and timestamp. image_name can be a path or
+    """Returns the path to the L2 .SAFE directory of image. Gets from granule and timestamp. image_name can be a path or
     a filename"""
     timestamp = get_sen_2_image_timestamp(os.path.basename(image_name))
     granule = get_sen_2_image_tile(os.path.basename(image_name))
@@ -953,7 +1067,7 @@ def stack_images(raster_paths, out_raster_path,
                     in_y_min: in_y_max,
                     in_x_min: in_x_max
                     ]
-        np.copyto(out_raster_view, in_raster_view)
+        out_raster_view[...] = in_raster_view
         out_raster_view = None
         in_raster_view = None
         present_layer += in_raster.RasterCount
@@ -961,6 +1075,42 @@ def stack_images(raster_paths, out_raster_path,
         in_raster = None
     out_raster_array = None
     out_raster = None
+
+
+def trim_image(in_raster_path, out_raster_path, polygon, format="GTiff"):
+    """Trims image to polygon"""
+    with TemporaryDirectory() as td:
+        in_raster = gdal.Open(in_raster_path)
+        in_gt = in_raster.GetGeoTransform()
+        x_res = in_gt[1]
+        y_res = in_gt[5] * -1
+        temp_band = in_raster.GetRasterBand(1)
+        datatype = temp_band.DataType
+        out_raster = create_new_image_from_polygon(polygon, out_raster_path, x_res, y_res,
+                                                  in_raster.RasterCount, in_raster.GetProjection(),
+                                                  format, datatype)
+        out_x_min, out_x_max, out_y_min, out_y_max = pixel_bounds_from_polygon(out_raster, polygon)
+        in_x_min, in_x_max, in_y_min, in_y_max = pixel_bounds_from_polygon(in_raster, polygon)
+        out_raster_array = out_raster.GetVirtualMemArray(eAccess=gdal.GA_Update)
+        in_raster_array = in_raster.GetVirtualMemArray()
+        out_raster_view = out_raster_array[
+                      :,
+                      out_y_min: out_y_max,
+                      out_x_min: out_x_max
+                      ]
+        in_raster_view = in_raster_array[
+                    :,
+                    in_y_min: in_y_max,
+                    in_x_min: in_x_max
+                    ]
+        out_raster_view[...] = in_raster_view
+        out_raster_view = None
+        in_raster_view = None
+        out_raster_array = None
+        in_raster_array = None
+        out_raster = None
+        in_raster = None
+
 
 
 def mosaic_images(raster_paths, out_raster_file, format="GTiff", datatype=gdal.GDT_Int32, nodata = 0):
@@ -1036,7 +1186,7 @@ def composite_images_with_mask(in_raster_path_list, composite_out_path, format="
                                                     projection, format, datatype)
 
     if generate_date_image:
-        time_out_path = composite_out_path.rsplit('.')[0]+"_dates.tif"
+        time_out_path = composite_out_path.rsplit('.')[0]+".dates"
         dates_image = create_matching_dataset(composite_image, time_out_path, bands=1, datatype=gdal.GDT_UInt32)
         dates_array = dates_image.GetVirtualMemArray(eAccess=gdal.gdalconst.GF_Write)
 
@@ -1276,7 +1426,7 @@ def clip_raster(raster_path, aoi_path, out_path, srs_id=4326):
         width_pix = int(np.floor(max_x_geo - min_x_geo)/in_gt[1])
         height_pix = int(np.floor(max_y_geo - min_y_geo)/np.absolute(in_gt[5]))
         new_geotransform = (min_x_geo, in_gt[1], 0, min_y_geo, 0, in_gt[5])
-        write_polygon(intersection, intersection_path)
+        write_geometry(intersection, intersection_path)
         clip_spec = gdal.WarpOptions(
             format="GTiff",
             cutlineDSName=intersection_path,
@@ -1291,19 +1441,22 @@ def clip_raster(raster_path, aoi_path, out_path, srs_id=4326):
         out = None
 
 
-def write_polygon(polygon, out_path, srs_id=4326):
+def write_geometry(geometry, out_path, srs_id=4326):
     """Saves a polygon to a shapefile"""
     driver = ogr.GetDriverByName("ESRI Shapefile")
     data_source = driver.CreateDataSource(out_path)
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(srs_id)
+    if type(srs_id) is int:
+        srs.ImportFromEPSG(srs_id)
+    if type(srs_id) is str:
+        srs.ImportFromWkt(srs_id)
     layer = data_source.CreateLayer(
         "geometry",
         srs,
-        geom_type=ogr.wkbPolygon)
+        geom_type=geometry.GetGeometryType())
     feature_def = layer.GetLayerDefn()
     feature = ogr.Feature(feature_def)
-    feature.SetGeometry(polygon)
+    feature.SetGeometry(geometry)
     layer.CreateFeature(feature)
     data_source.FlushCache()
     data_source = None
@@ -1531,12 +1684,12 @@ def create_mask_from_fmask(in_l1_dir, out_path):
         resample_image_in_place(out_path, 10)
 
 
-def create_mask_from_sen2cor_and_fmask(l1_dir, l2_dir, out_mask_path, buffer_size=0):
+def create_mask_from_sen2cor_and_fmask(l1_safe_file, l2_safe_file, out_mask_path, buffer_size=0):
     with TemporaryDirectory() as td:
         s2c_mask_path = os.path.join(td, "s2_mask.tif")
         fmask_mask_path = os.path.join(td, "fmask.tif")
-        create_mask_from_confidence_layer(l2_dir, s2c_mask_path, buffer_size=buffer_size)
-        create_mask_from_fmask(l1_dir, fmask_mask_path)
+        create_mask_from_confidence_layer(l2_safe_file, s2c_mask_path, buffer_size=buffer_size)
+        create_mask_from_fmask(l1_safe_file, fmask_mask_path)
         combine_masks([s2c_mask_path, fmask_mask_path], out_mask_path, combination_func="and", geometry_func="union")
 
 
@@ -1719,7 +1872,7 @@ def classify_image(image_path, model_path, class_out_path, prob_out_path=None,
     n_samples = image_array.shape[0]  # gives x * y dimension of the whole image
     if 0 in image_array:  # a quick pre-check
         good_samples = image_array[np.all(image_array != nodata, axis=1), :]
-        good_indices = [i for (i, j) in enumerate(image_array) if np.all(j != nodata)] # This is slowing things down too much
+        good_indices = [i for (i, j) in enumerate(image_array) if np.all(j != nodata)] # This is slowing things down too much. Maybe move into chunked section?
         n_good_samples = len(good_samples)
     else:
         good_samples = image_array
@@ -1798,10 +1951,6 @@ def autochunk(dataset, mem_limit=None):
         chunk_size_bytes = (pixels/num_chunks)*bytes_per_pixel
         if chunk_size_bytes < mem_limit:
             return num_chunks
-
-
-def covert_image_format(image, format):
-    pass
 
 
 def classify_directory(in_dir, model_path, class_out_dir, prob_out_dir,
@@ -2016,7 +2165,7 @@ def raster_sum(inRstList, outFn, outFmt='GTiff'):
     empty_arr = np.empty(rst_dim, dtype=np.uint8)
 
     for i, rst in enumerate(inRstList):
-        #Todo: Check that dimensions and shape of both arrays are the same in the first loop.
+        # Todo: Check that dimensions and shape of both arrays are the same in the first loop.
         ds = gdal.Open(rst)
         bnd = ds.GetRasterBand(1)
         arr = bnd.ReadAsArray()
@@ -2043,7 +2192,6 @@ def raster_sum(inRstList, outFn, outFmt='GTiff'):
     out_ds = None
 
     log.info('Finished summing up of raster layers.')
-
 
 
 def filter_by_class_map(image_path, class_map_path, out_map_path, classes_of_interest, out_resolution=10):
@@ -2081,3 +2229,17 @@ def filter_by_class_map(image_path, class_map_path, out_map_path, classes_of_int
 
     log.info("Map filtered")
     return out_map_path
+
+
+def show_satellite_image(image_path):
+    """Uses matplotlib.imshow() to preview a satellite image at image_path. Assumes image is bgr (ie quicklook)"""
+    img = gdal.Open(image_path)
+    array = img.GetVirtualMemArray()
+    if len(array.shape) >= 3:
+        img_view = array.transpose([1,2,0])
+    else:
+        img_view = array
+    plt.imshow(img_view)
+    img_view = None
+    array = None
+    img = None

@@ -42,6 +42,17 @@ if __name__ == "__main__":
                              "config file.")
     parser.add_argument("--chunks", dest="num_chunks", type=int, default=10, help="Sets the number of chunks to split "
                                                                                   "images to in ml processing")
+    parser.add_argument('--download_source', default="scihub", help="Sets the download source, can be scihub"
+                                                                    "(default) or aws")
+    parser.add_argument('--flip_stacks', action='store_true', default=False,
+                        help="If present, stasks the classification stack as new(bgr), old(bgr). Default is"
+                             "old(bgr), new(bgr). For compatability with old models.")
+    parser.add_argument('--download_l2_data', action='store_true', default=False,
+                        help="If present, skips sen2cor and instead downloads every image in the query with"
+                             "both a L1 and L2 product")
+    parser.add_argument('--build_prob_image', action='store_true', default=False,
+                        help="If present, build a confidence map of pixels. These tend to be large.")
+
     parser.add_argument('-d', '--download', dest='do_download', action='store_true', default=False)
     parser.add_argument('-p', '--preprocess', dest='do_preprocess', action='store_true',  default=False)
     parser.add_argument('-m', '--merge', dest='do_merge', action='store_true', default=False)
@@ -59,8 +70,9 @@ if __name__ == "__main__":
     if (args.do_download or args.do_preprocess or args.do_merge or args.do_stack or args.do_classify) == True:
         do_all = False
 
-    conf = configparser.ConfigParser()
+    conf = configparser.ConfigParser(allow_no_value=True)
     conf.read(args.config_path)
+
     sen_user = conf['sent_2']['user']
     sen_pass = conf['sent_2']['pass']
     project_root = conf['forest_sentinel']['root_dir']
@@ -94,6 +106,7 @@ if __name__ == "__main__":
     if args.skip_prob_image:
         probability_image_dir = None
 
+
     if args.start_date == "LATEST":
         # This isn't nice, but returns the yyyymmdd string of the latest stacked image
         start_date = pyeo.get_image_acquisition_time(pyeo.sort_by_timestamp(
@@ -114,9 +127,13 @@ if __name__ == "__main__":
                 composite_start_date, composite_end_date, cloud_cover))
             composite_products = pyeo.check_for_s2_data_by_date(aoi_path, composite_start_date, composite_end_date,
                                                              conf, cloud_cover=cloud_cover)
-            pyeo.download_s2_data(composite_products, composite_l1_image_dir, composite_l2_image_dir, source='scihub',
-                                  user=sen_user, passwd=sen_pass)
-        if args.do_preprocess or do_all:
+            if args.download_l2_data:
+                log.info("Filtering query results for matching L1 and L2 products")
+                composite_products = pyeo.filter_non_matching_s2_data(composite_products)
+                log.info("{} products remain".format(len(composite_products)))
+            pyeo.download_s2_data(composite_products, composite_l1_image_dir, composite_l2_image_dir,
+                                  source=args.download_source, user=sen_user, passwd=sen_pass, try_scihub_on_fail=True)
+        if args.do_preprocess or do_all and not args.download_l2_data:
             log.info("Preprocessing composite products")
             pyeo.atmospheric_correction(composite_l1_image_dir, composite_l2_image_dir, sen2cor_path,
                                         delete_unprocessed_image=False)
@@ -130,11 +147,15 @@ if __name__ == "__main__":
     # Query and download all images since last composite
     if args.do_download or do_all:
         products = pyeo.check_for_s2_data_by_date(aoi_path, start_date, end_date, conf, cloud_cover=cloud_cover)
+        if args.download_l2_data:
+            log.info("Filtering query results for matching L1 and L2 products")
+            products = pyeo.filter_non_matching_s2_data(products)
+            log.info("{} products remain".format(len(products)))
         log.info("Downloading")
-        pyeo.download_s2_data(products, l1_image_dir, l2_image_dir, "scihub", user=sen_user, passwd=sen_pass)
+        pyeo.download_s2_data(products, l1_image_dir, l2_image_dir, args.download_source, user=sen_user, passwd=sen_pass, try_scihub_on_fail=True)
 
     # Atmospheric correction
-    if args.do_preprocess or do_all:
+    if args.do_preprocess or do_all and not args.download_l2_data:
         log.info("Applying sen2cor")
         pyeo.atmospheric_correction(l1_image_dir, l2_image_dir, sen2cor_path, delete_unprocessed_image=False)
 
@@ -159,6 +180,8 @@ if __name__ == "__main__":
             [image_name for image_name in os.listdir(merged_image_dir) if image_name.endswith(".tif")],
             recent_first=False
         )
+    if not images:
+        raise FileNotFoundError("No images found in {}. Did your preprocessing complete?".format(merged_image_dir))
     log.info("Images to process: {}".format(images))
 
     for image in images:
@@ -169,13 +192,18 @@ if __name__ == "__main__":
         if args.do_stack or do_all:
             latest_composite_path = pyeo.get_preceding_image_path(new_image_path, composite_dir)
             log.info("Stacking {} with composite {}".format(new_image_path, latest_composite_path))
-            new_stack_path = pyeo.stack_image_with_composite(new_image_path, latest_composite_path, stacked_image_dir)
+            new_stack_path = pyeo.stack_image_with_composite(new_image_path, latest_composite_path, stacked_image_dir,
+                                                             invert_stack=args.flip_stacks)
+        #else new_stack_path =
 
         # Classify with composite
         if args.do_classify or do_all:
             log.info("Classifying with composite")
             new_class_image = os.path.join(catagorised_image_dir, "class_{}".format(os.path.basename(new_stack_path)))
-            new_prob_image = os.path.join(probability_image_dir, "prob_{}".format(os.path.basename(new_stack_path)))
+            if args.build_prob_image:
+                new_prob_image = os.path.join(probability_image_dir, "prob_{}".format(os.path.basename(new_stack_path)))
+            else:
+                new_prob_image = None
             pyeo.classify_image(new_stack_path, model_path, new_class_image, new_prob_image, num_chunks=10,
                                 skip_existing=True, apply_mask=True)
 

@@ -30,27 +30,28 @@ the basic GDAL/OGR/OSR stack.
 Installation
 ============
 
-With Git installed, :code:`cd` to an install location then run the following lines
+With Git and Miniconda or Anaconda installed, :code:`cd` to an install location then run the following lines
 
 .. code-block:: bash
 
    git clone https://github.com/clcr/pyeo.git
    cd pyeo
-   python setup.py install
-
-If you want to edit this code, run
-
-.. code-block:: bash
-
-   python setup.py devel
+   conda env create --file environment.yml --name pyeo_env
+   conda activate pyeo_env
 
 
-instead of :code:`install`
-To verify the installation, open a Python prompt and type
+Including Pyeo in your own code
+===============================
 
->>> import pyeo
+Include the following lines at the start of your Python scripts:
 
-You should get no errors.
+.. code-block:: python
+
+   import sys
+   sys.path.append("/path/to/pyeo")
+   import pyeo.core as pyeo
+
+You may see a warning about scikit versions; this is normal.
 
 Function reference
 ==================
@@ -62,6 +63,8 @@ A small test suite is located in pyeo/tests/pyeo_tests.py; this is designed for 
 Some example applications and demos are in pyeo/apps; for an illustration of the use of the library,
 pyeo/apps/change_detection/simple_s2_change_detection.py is recommended.
 
+Conven
+
 
 File structure and logging
 --------------------------
@@ -71,6 +74,18 @@ File structure and logging
  .. autofunction:: create_file_structure
 
  .. autofunction:: read_aoi
+ 
+ .. autofunction:: clean_aoi
+ 
+ .. autofunction:: get_preceding_image_path
+ 
+ .. autofunction:: get_pyeo_timestamp
+ 
+ .. autofunction:: is_tif
+ 
+ .. autofunction:: load_api_key
+ 
+ .. autofunction:: read_geojson
 
 
 Sentinel 2 data acquisition
@@ -81,10 +96,14 @@ Sentinel 2 data acquisition
  .. autofunction:: download_new_s2_data
 
  .. autofunction:: sent2_query (from geospatial_learn)
+ 
+ .. autofunction:: check_for_s2_data_by_date
 
 
 Planet data acquisition
 -----------------------
+
+ .. autofunction:: download_planet_image_on_day
 
  .. autofunction:: planet_query
 
@@ -95,12 +114,28 @@ Planet data acquisition
  .. autofunction:: do_saved_search
 
  .. autofunction:: activate_and_dl_planet_item
+ 
+ .. autofunction:: get_planet_product_path
+
+ 
+
+
+Data source download functions
+------------------------------
+
+ .. autofunction:: download_blob_from_google
+ 
+ .. autofunction:: download_from_google_cloud
+ 
+ .. autofunction:: download_from_scihub
 
 
 Sentinel 2 preprocessing
 ------------------------
 
  .. autofunction:: apply_sen2cor
+ 
+ .. autofunction:: apply_fmask
 
  .. autofunction:: atmospheric_correction
 
@@ -115,6 +150,26 @@ Sentinel 2 preprocessing
  .. autofunction:: stack_sentinel_2_bands
 
  .. autofunction:: get_sen_2_image_timestamp
+ 
+ .. autofunction:: check_for_invalid_l1_data
+ 
+ .. autofunction:: check_for_invalid_l2_data
+ 
+ .. autofunction:: clean_l2_data
+ 
+ .. autofunction:: clean_l2_dir
+ 
+ .. autofunction:: get_l1_safe_file
+ 
+ .. autofunction:: get_l2_safe_file
+ 
+ .. autofunction:: get_sen_2_granule_id
+ 
+ .. autofunction:: get_sen_2_image_orbit
+ 
+ .. autofunction:: get_sen_2_image_tile
+ 
+ .. autofunction:: get_sen_2_tiles
 
 
 Raster processing
@@ -127,9 +182,11 @@ Raster processing
  .. autofunction:: stack_old_and_new_images
 
  .. autofunction:: stack_images
+ 
+ .. autofunction:: stack_image_with_composite
 
  .. autofunction:: get_raster_bounds
-
+ 
  .. autofunction:: get_raster_size
 
  .. autofunction:: resample_image_in_place
@@ -137,7 +194,24 @@ Raster processing
  .. autofunction:: composite_images_with_mask
 
  .. autofunction:: composite_directory
+ 
+ .. autofunction:: filter_by_class_map
+ 
+ .. autofunction:: mosaic_images
 
+ .. autofunction:: raster_reclass_binary
+ 
+ .. autofunction:: raster_sum
+ 
+ .. autofunction:: raster_to_array
+ 
+ .. autofunction:: reproject_directory
+ 
+ .. autofunction:: reproject_image
+ 
+ .. autofunction:: reproject_geotransform 
+ 
+ 
 
 Geometry processing
 -------------------
@@ -148,7 +222,7 @@ Geometry processing
 
  .. autofunction:: multiple_intersection
 
- .. autofunction:: write_polygon
+ .. autofunction:: write_geometry
 
  .. autofunction:: check_overlap
 
@@ -157,6 +231,8 @@ Geometry processing
  .. autofunction:: get_aoi_size
 
  .. autofunction:: get_poly_size
+ 
+ .. autofunction:: get_poly_bounding_rect
 
 
 Raster/Geometry interactions
@@ -179,6 +255,10 @@ Raster/Geometry interactions
  .. autofunction:: create_new_image_from_polygon
 
  .. autofunction:: get_local_top_left
+ 
+ .. autofunction:: align_bounds_to_whole_number
+ 
+ .. autofunction:: floor_to_resolution
 
 
 Masking functions
@@ -187,18 +267,34 @@ Masking functions
  .. autofunction:: create_mask_from_model
 
  .. autofunction:: create_mask_from_confidence_layer
+ 
+ .. autofunction:: create_mask_from_class_map
+ 
+ .. autofunction:: create_mask_from_fmask
+ 
+ .. autofunction:: create_mask_from_sen2cor_and_fmask
 
  .. autofunction:: get_mask_path
 
  .. autofunction:: combine_masks
+ 
+ .. autofunction:: get_masked_array
 
  .. autofunction:: apply_array_image_mask
+ 
+ .. autofunction:: buffer_mask_in_place
+ 
+ .. autofunction:: project_array
 
 
 Machine learning functions
 --------------------------
 
  .. autofunction:: classify_image
+ 
+ .. autofunction:: classify_directory
+ 
+ .. autofunction:: change_from_composite
 
  .. autofunction:: reshape_raster_for_ml
 
@@ -209,8 +305,14 @@ Machine learning functions
  .. autofunction:: create_trained_model
 
  .. autofunction:: create_model_for_region
+ 
+ .. autofunction:: create_model_from_signatures
 
  .. autofunction:: get_training_data
+ 
+ .. autofunction:: flatten_probability_image
+ 
+ .. autofunction:: autochunk
 
 
 Exception objects
