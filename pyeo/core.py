@@ -1751,11 +1751,11 @@ def combine_masks(mask_paths, out_path, combination_func = 'and', geometry_func 
             out_mask_view[:,:] = in_mask_view
         else:
             if combination_func is 'or':
-                out_mask_view[:,:] = np.bitwise_or(out_mask_view, in_mask_view, dtype=np.uint8)
+                out_mask_view[:, :] = np.bitwise_or(out_mask_view, in_mask_view, dtype=np.uint8)
             elif combination_func is 'and':
-                out_mask_view[:,:] = np.bitwise_and(out_mask_view, in_mask_view, dtype=np.uint8)
+                out_mask_view[:, :] = np.bitwise_and(out_mask_view, in_mask_view, dtype=np.uint8)
             elif combination_func is 'nor':
-                out_mask_view[:,:] = np.bitwise_not(np.bitwise_or(out_mask_view, in_mask_view, dtype=np.uint8), dtype=np.uint8)
+                out_mask_view[:, :] = np.bitwise_not(np.bitwise_or(out_mask_view, in_mask_view, dtype=np.uint8), dtype=np.uint8)
             else:
                 raise Exception("Invalid combination_func; valid values are 'or', 'and', and 'nor'")
         in_mask_view = None
@@ -1817,12 +1817,9 @@ def resample_image_in_place(image_path, new_res):
 
 
 def apply_array_image_mask(array, mask, fill_value=0):
-    """Applies a mask of (y,x) to an image array of (bands, y, x). Replaces any masked pixels with fill_value"""
-    if array.ndim == 2:
-        band_count = 1
-    else:
-        band_count = array.shape[0]
-    stacked_mask = np.stack([mask]*band_count, axis=0)
+    """Applies a mask of (y,x) to an image array of (bands, y, x). Replaces any masked pixels with fill_value
+    Mask is an a 2 dimensional array of 1 ( unmasked) and 0 (masked)"""
+    stacked_mask = np.broadcast_to(mask, array.shape)
     return np.where(stacked_mask == 1, array, fill_value)
 
 
@@ -1882,11 +1879,16 @@ def classify_image(image_path, model_path, class_out_path, prob_out_path=None,
     log.info("Finding good pixels without missing values")
     log.info("image_array.shape = {}".format(image_array.shape))
     n_samples = image_array.shape[0]  # gives x * y dimension of the whole image
-    if 0 in image_array:  # a quick pre-check
-        good_samples = image_array[np.all(image_array != nodata, axis=1), :]
-        good_indices = [i for (i, j) in enumerate(image_array) if np.all(j != nodata)] # This is slowing things down too much. Maybe move into chunked section?
+    good_mask = np.all(image_array != nodata, axis=1)
+    good_sample_count = np.count_nonzero(good_mask)
+    log.info("No. good values: {}".format(good_sample_count))
+    if good_sample_count <= 0.5*len(good_mask):  # If the images is less than 70% good pixels, do filtering
+        log.info("Filtering nodata values")
+        good_indices = np.nonzero(good_mask)
+        good_samples = np.take(image_array, good_indices, axis=0).squeeze()
         n_good_samples = len(good_samples)
     else:
+        log.info("Not worth filtering nodata, skipping.")
         good_samples = image_array
         good_indices = range(0, n_samples)
         n_good_samples = n_samples
