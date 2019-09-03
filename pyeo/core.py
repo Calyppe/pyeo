@@ -2257,3 +2257,21 @@ def show_satellite_image(image_path):
     img_view = None
     array = None
     img = None
+
+
+def write_geotiff(fname, data, geo_transform, projection, n_bnds=1):
+    """Create a GeoTIFF file with the given data.
+
+    :param fname: (string) representing the output filename.
+    :param data: numpy array.
+    :param geo_transform:
+    :param projection:
+    :param int n_bnds: Number of bands in output raster.
+    """
+    driver = gdal.GetDriverByName('GTiff')
+    rows, cols = data.shape
+    dataset = driver.Create(fname, cols, rows, n_bnds, gdal.GDT_Byte)
+    dataset.SetGeoTransform(geo_transform)
+    dataset.SetProjection(projection)
+    dataset.WriteArray(data)
+    dataset = None  # Closing the file
