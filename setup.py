@@ -1,4 +1,14 @@
 from distutils.core import setup
+import os
+import stat
+
+if 'PYEO' not in os.environ:
+    this_directory = os.path.abspath(os.path.dirname(__file__))
+    os.environ['PYEO'] = this_directory
+    os.environ['PATH'] = os.environ['PATH']+r":$PYEO/bin"
+    permissions = stat.S_IEXEC | stat.S_IREAD
+    os.chmod(this_directory+"/bin/*", permissions)
+
 
 setup(
     name='Pyeo',
@@ -10,17 +20,22 @@ setup(
     license='LICENSE',
     description='Modular processing chain from download to ard',
     install_requires=[
-        'sentinelsat>=0.12.1',
-        'sentinelhub>=2.4.2',
-        'pytest>=3.5.0',
-        'pygdal>=2.3.0',
-        'numpy>=1.15.4',
-        'scikit-learn==0.19.2',
-        'scikit-image>=0.14.0'
-        'scipy>=1.1.0',
-        'joblib>=0.12.5',
-        'requests>=12.20.1',
-        'tenacity>=5.0.2',
-        'pytest>=4.0.0'
+        "boto3",
+        "botocore",
+        "gdal",
+        "joblib",
+        "matplotlib",
+        "pip",
+        "pytest",
+        "requests",
+        "setuptools",
+        "numpy",
+        "scikit-learn",
+        "scipy",
+        "geojson",
+        "sentinelhub",
+        "sentinelsat",
+        "tenacity",
+        "tqdm"
     ],
 )
