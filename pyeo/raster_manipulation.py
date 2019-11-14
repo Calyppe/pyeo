@@ -1515,3 +1515,13 @@ def apply_fmask(in_safe_dir, out_file, fmask_command="fmask_sentinel2Stacked.py"
             log.info(nextline)
         if nextline == '' and fmask_proc.poll() is not None:
             break
+
+
+def coregister_image():
+    """
+    This function co-registers a pair of images using scikit-image functions using RANSAC.
+
+    Example taken from: https://scikit-image.org/docs/dev/auto_examples/transform/plot_matching.html
+
+    :return: Path to co-registered image and image transform parameters.
+    """
