@@ -22,6 +22,8 @@ from skimage.exposure import rescale_intensity
 from skimage.color import rgb2gray
 from skimage.measure import ransac
 
+import pyeo.raster_manipulation
+
 
 # generate synthetic checkerboard image and add gradient for the later matching
 # ToDo: Could be gdal image load?
@@ -146,6 +148,25 @@ ax[1].set_title('Faulty correspondences')
 plt.show()
 
 
+#================================================================================
+#                           Test on two Sentinel-2 scenes
+#================================================================================
+
+# read in Sentinel-2 GeoTiff
+# reference image is affected by heavy cloud cover i.e. > 60%
+# Can image co-registration still work under these conditions?
+img_ref_fn = '/media/ubuntu/data_archive/F2020/Colombia/raster/cartagena/images/' \
+        'S2A_MSIL2A_20180119T152631_N0206_R025_T18NWF_20180119T184927.tif'
+# image to be co-registered almost cloud free
+img_coreg_fn = '/media/ubuntu/data_archive/F2020/Colombia/raster/cartagena/images/' \
+            'S2A_MSIL2A_20180208T152641_N0206_R025_T18NWF_20180208T185301.tif'
+# read image in as array
+img_ref = pyeo.raster_manipulation.raster_to_array(img_ref_fn)
+img_coreg = pyeo.raster_manipulation.raster_to_array(img_coreg_fn)
+
+
+
+
 def coregister_image():
     """
     This function co-registers a pair of images using scikit-image functions using RANSAC.
@@ -158,7 +179,7 @@ def coregister_image():
 
 
 
-if "__name__"==__main__:
+if __name__ == "__main__":
 
 
 
