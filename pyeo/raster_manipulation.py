@@ -38,6 +38,9 @@ import numpy as np
 from osgeo import gdal_array, osr, ogr
 from skimage import morphology as morph
 
+from arosics import COREG
+from arosics import DESHIFTER
+
 from pyeo.coordinate_manipulation import get_combined_polygon, pixel_bounds_from_polygon, write_geometry, \
     get_aoi_intersection, get_raster_bounds, align_bounds_to_whole_number, get_poly_bounding_rect
 from pyeo.array_utilities import project_array
@@ -1517,11 +1520,45 @@ def apply_fmask(in_safe_dir, out_file, fmask_command="fmask_sentinel2Stacked.py"
             break
 
 
-def coregister_image():
+def global_coreg(ref_rst, target_rst, out_fn=None, out_fmt='GTIFF', band=None):
     """
-    This function co-registers a pair of images using scikit-image functions using RANSAC.
+    A fast image co-registration based on phase correlation from the AROSICS library developed by Scheffler et al.
+    (2017): AROSICS: An Automated and Robust Open-Source Image Co-Registration Software for Multi-Sensor Satellite Data.
 
-    Example taken from: https://scikit-image.org/docs/dev/auto_examples/transform/plot_matching.html
+    The function applies the global image co-registration function from the AROSICS library which is fast because it
+    only uses one vector of identified shifts bnased on one small image subset and applies it across the whole image. By
+    default it uses the 1st band of a multi-layered image. For Sentinel-2 this would be the blue band. If another band
+    is required than please adjust the parameter 'band_n'.
 
-    :return: Path to co-registered image and image transform parameters.
+    The AROSICS default window size of (256, 256) is used to calculate the shifts. Also, all available CPUs will be
+    used. The resampling function used is the AROSICS default cubic resampling function.
+
+    For more accurate and locally changing shifts use the local_coreg() function instead. It is computationally more
+    expensive.
+
+    References:
+    - Paper link: https://www.mdpi.com/2072-4292/9/7/676
+    - PyPi link: https://pypi.org/project/arosics/
+    - PyDocs link: http://danschef.gitext.gfz-potsdam.de/arosics/doc/
+
+    Note: So far we have only tested the function on Sentinel-2 images. But in theory it should also work on different
+    sensor combinations e.g. co-registering SAR with optical imagery.
+
+    :param str ref_rst: The path to the reference image.
+    :param str target_rst: The path to the target image.
+    :param str out_fn: The path to the output image. If out_fn is given it will write the new coregistered image to
+    disk. Default is 'None' which means that the image will be kept in memory only.
+    :param str out_fn: Output format as a string. All gdal supported raster formats are supported.
+    :param num band: The band number to use use for image coregistration. Default value is 'None' which means the first
+    band will be used.
+
+    :return: The function returns the COREG object from the the AROSICS lib and the path to the output image 'out_fn'.
     """
+    # initialise the COREG class
+    CR = COREG(ref_rst, target_rst, path_out=out_fn, fmt_out=out_fmt, ws=(256, 256))
+    # calculate the shits
+    CR.calculate_spatial_shifts()
+    # apply the shifts and write image to disk
+    DESHIFTER(target_rst, CR.coreg_info, path_out=out_fn).correct_shifts()
+
+    return CR, out_fn
