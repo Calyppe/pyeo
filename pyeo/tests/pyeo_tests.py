@@ -1,7 +1,8 @@
 import os, sys
 from tempfile import TemporaryDirectory
 import numpy as np
-import gdal, ogr
+import ogr
+from osgeo import gdal
 
 import pyeo.classification
 import pyeo.coordinate_manipulation
